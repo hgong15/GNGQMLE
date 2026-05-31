@@ -1,0 +1,1160 @@
+eta_lambda=function(x,lambda,w,params){
+  #Cr0=moments0(r,w,params)
+  #Cr=Cr0^(1/r)
+  Cr=1/lambda
+  #print(Cr0)
+  if(w==0){
+    return(log(dPE(x*Cr, nu =params[1])*Cr))
+  }else if(w==1){
+    t_df=params[1]
+    return(log(dt(x*Cr, df = t_df)*Cr))
+  }
+  else if(w==2){
+    m=params[1]
+    nu=params[2]
+    return(log(dpearsonIV(x,m= params[1], nu= params[2],location=0,scale=lambda)))
+  }
+  else if(w==3){
+    return(dsgg(x,beta=params[1],nu= params[2],lambda=lambda,log=T ))
+  }else if(w==4){
+    return(log(dstable(x*Cr, alpha= params[1],beta= params[2],gamma= params[3],delta= params[4])*Cr))
+  }
+}
+lambda_fun
+
+QMLEstimator_func=function(y,r,method=1)
+{
+  n=length(y)
+  yt=y
+  C11=1/(2*r^(1/r-1)*gamma(1/r))
+  #print(C11)
+  QMLEstimator=NULL
+  log_likelihood=NULL
+  if(method==1){
+    L=function(lambda)
+    { 
+      theta=exp(lambda)
+      result1=eta_theta(yt,theta)
+      ht2=result1$ht
+      eta2=result1$hat_eta
+      return(mean(r/2*log(ht2)+abs(eta2)^r))
+      # sum(log(exp(s)*sqrt(1+exp(a)*X^2))+((Y-p*X)/exp(s)/sqrt(1+exp(a)*X^2)/2))
+    }
+    opt=optim(log(c(0.01,0.2,0.9)),L)
+    lambda=opt$par
+    QMLEstimator=exp(lambda)
+    log_likelihood=-opt$value
+  }
+  if(method==2){
+    L=function(lambda)
+    { 
+      theta=c(20,5,5)*sigmoid(lambda)+c(0,1e-10,1e-10)
+      #theta=sigmoid(lambda)
+      result1=eta_theta(yt,theta)
+      ht2=result1$ht
+      eta2=result1$hat_eta
+      return(mean(r/2*log(ht2)+abs(eta2)^r))
+      # sum(log(exp(s)*sqrt(1+exp(a)*X^2))+((Y-p*X)/exp(s)/sqrt(1+exp(a)*X^2)/2))
+    }
+    #opt=optim(log(theta0),L)
+    opt=optim(c(-2,-2,-2),L)
+    #opt= nlminb(log(c(0.1,0.1,0.1)), L, lower =c(-18,-3,-3), upper = c(0,0.4,0.4))
+    #opt= optim(c(0.1,0.1,0.1), L, NULL, method = "L-BFGS-B",lower =c(1e-8,0.05,0.05), upper = c(1,0.95,0.95))
+    #opt= optim(log(c(0.1,0.1,0.1)), L, NULL, method = "BFGS")
+    #opt=optim(c(0.25,0.15,0.6), L, NULL, method = "L-BFGS-B",lower =c(1e-8,0.05,0.1), upper = c(2,.95,0.95))
+    #opt=optim(c(0.25,0.15,0.6), L, NULL,lower =c(1e-8,0.05,0.1), upper = c(2,.95,0.95))
+    #QMLEstimator=exp(opt$par)
+    lambda=opt$par
+    #QMLEstimator=c(1,1,1)*sigmoid(lambda)+c(1e-5,1e-4,1e-4)
+    QMLEstimator=c(20,5,5)*sigmoid(lambda)+c(0,1e-10,1e-10)
+    log_likelihood=-opt$value
+  }
+  if(method==3){
+    L=function(lambda)
+    { 
+      #theta=c(1,1,1)*sigmoid(lambda)+c(1e-5,1e-4,1e-4)
+      #theta=sigmoid(lambda)
+      theta=lambda
+      result1=eta_theta(yt,theta)
+      ht2=result1$ht
+      eta2=result1$hat_eta
+      return(mean(r/2*log(ht2)+abs(eta2)^r))
+      # sum(log(exp(s)*sqrt(1+exp(a)*X^2))+((Y-p*X)/exp(s)/sqrt(1+exp(a)*X^2)/2))
+    }
+    #opt=optim(log(theta0),L)
+    #opt=optim(c(-2,-2,-2),L)
+    #opt= nlminb(log(c(0.1,0.1,0.1)), L, lower =c(-18,-3,-3), upper = c(0,0.4,0.4))
+    opt= optim(theta0, L, NULL, method = "L-BFGS-B",lower =c(1e-10,1e-10,1e-10), upper = c(10,2,2))
+    #opt= optim(log(c(0.1,0.1,0.1)), L, NULL, method = "BFGS")
+    #opt=optim(c(0.25,0.15,0.6), L, NULL, method = "L-BFGS-B",lower =c(1e-8,0.05,0.1), upper = c(2,.95,0.95))
+    #opt=optim(c(0.25,0.15,0.6), L, NULL,lower =c(1e-8,0.05,0.1), upper = c(2,.95,0.95))
+    #QMLEstimator=exp(opt$par)
+    lambda=opt$par
+    QMLEstimator=lambda
+    log_likelihood=-opt$value
+    
+  }
+  log_likelihood1=n*log_likelihood/r+n*log(C11)
+  return(list(QMLEstimator=QMLEstimator,log_likelihood=log_likelihood1,AIC=2*3-2*log_likelihood1,BIC=3*log(n)-2*log_likelihood1))
+}
+r=1
+1/(2*r^(1/r-1)*gamma(1/r))
+
+lambda_estimate_func=function(error_tilde,params)
+{
+  
+  w=params[1]
+  params1=params[-1]
+  L2=function(lambda)
+  {
+    return(-mean(eta_lambda(error_tilde,exp(lambda),w,params1)))
+  }
+  lambda_hat=exp(optim(c(-1), L2, NULL, method = "L-BFGS-B",lower =c(-10), upper = c(10))$par)
+  #opt0 = optim(c(0), L2)
+  # opt0 =optimize(L2,c(-10,10), tol=1e-8)
+  # #c(0, 1), tol = 0.0001,
+  # lambda_hat=exp(opt0$objective)
+  return(lambda_hat)
+}
+
+
+
+sigmoid=function(x){
+  return(1/(1+exp(-x)))
+}
+
+lambda_estimate_func2 = function(error_tilde, method = 1,err=0.1)
+{
+  my_list <- list()
+  obj_v = rep(1e10, 4)
+  opt0 =NULL
+  opt1=NULL
+  opt2=NULL
+  # s=sd(error_tilde)
+  # #error_tilde=error_tilde+rnorm(length(error_tilde),0,err*s)
+  # #error_tilde[error_tilde==0]=rnorm(sum(error_tilde==0),0,err*s)
+  if (method == 1) {
+    L0 = function(lambda)
+    {
+      theta1 = exp(lambda)
+      #return(-mean(dPE(error_tilde / theta1[1], nu = theta1[2],log = T)) +log( theta1[1]))
+      
+      #error_tilde[error_tilde==0]=rnorm(sum(error_tilde==0),0,err*s)
+      xx= dPE(error_tilde / theta1[1],  nu = theta1[2],log=T)
+      #xx=xx[xx<log(10000)]
+      return(-mean(xx)+log(theta1[1])
+      )
+    }
+    opt0 = optim(c(0, 0), L0)
+    
+    L1 = function(lambda)
+    {
+      #theta1 = c(20, 29) * sigmoid(lambda) + c(1e-3, 1)
+      theta1 = exp((lambda))
+      s=1#sqrt(theta1[2]/(theta1[2]-2))
+      return(-(mean(log(
+        dt(error_tilde / theta1[1]*s, df = theta1[2]) / theta1[1]*s
+      ))))
+    }
+    #opt1=nlminb(c(1,3), L1, lower = c(0.01,0.01), upper = c(20,15))
+    opt1 = optim(c(0, 1), L1)
+    
+    
+  }
+  if (method == 2) {
+    L0 = function(lambda)
+    {
+      #theta1 = c(20, 1.9) * sigmoid(lambda) + c(1e-2, 0.1)
+      theta1 = c(20, 2) * sigmoid(lambda) + c(0.1, 0.5)
+      
+      xx= dPE(error_tilde / theta1[1],  nu = theta1[2],log=T)
+      #xx=xx[xx<log(10000)]
+      return(-(mean(xx)+log(theta1[1])
+      ))
+      
+      # return(-mean(log(
+      #   dPE(error_tilde / theta1[1], nu = theta1[2]) / theta1[1]
+      # )))
+    }
+    opt0 = optim(c(1, 0), L0)
+    #sigmoid(-1)*20
+    #opt0= optim(c(0,0), L0)
+    #opt0=nlminb(c(1,1), L0, lower = c(0.01,0.01), upper = c(20,3))
+    #opt0= optim(c(1,1), L0, NULL, method = "L-BFGS-B",lower =c(0.01,0.01), upper = c(15,2.5))
+    #opt0=nlminb(c(1,0,1,1), L0, lower = c(0.01,0,1,0.01), upper = c(20,0,1,2))
+    L1 = function(lambda)
+    {
+      theta1 = c(20, 30) * sigmoid(lambda) + c(0.1, 2)
+      return(-(mean(log(
+        dt(error_tilde / theta1[1], df = theta1[2]) / theta1[1]
+      ))))
+    }
+    opt1 = optim(c(1, -5), L1)
+    #sigmoid((-1))
+    # L2=function(lambda)
+    # {
+    #   theta1 = c(20, 200) * sigmoid(lambda[1:2]) + c(1e-3, 1)
+    #   return(-(mean(log(dpearsonIV(error_tilde/theta1[1],m =theta1[2],nu=lambda[3],location=0, scale=1,log=T)-log(theta1[1])))))
+    # }
+    # 
+    # opt2= optim(c(-3,-10,0), L2)
+  }
+  if (method== 3) {
+    L0 = function(lambda)
+    {
+      theta1 = lambda
+      return(-mean(log(
+        dPE(error_tilde / theta1[1], nu = theta1[2]) / theta1[1]
+      )))
+    }
+    #opt0 = optim(c(-3, -1), L0)
+    #opt0= optim(c(0,0), L0)
+    #opt0=nlminb(c(1,1), L0, lower = c(0.01,0.01), upper = c(20,3))
+    opt0= optim(c(1,1), L0, NULL, method = "L-BFGS-B",lower =c(0.01,0.1), upper = c(15,2))
+    #opt0=nlminb(c(1,0,1,1), L0, lower = c(0.01,0,1,0.01), upper = c(20,0,1,2))
+    L1 = function(lambda)
+    {
+      theta1 = lambda
+      return(-(mean(log(
+        dt(error_tilde / theta1[1], df = theta1[2]) / theta1[1]
+      ))))
+    }
+    opt1= optim(c(1,5), L1, NULL, method = "L-BFGS-B",lower =c(0.01,2.1), upper = c(15,20))
+  }
+  obj_v[1] = opt0$value
+  obj_v[2] = opt1$value
+  
+  
+  #print(opt0)
+  #print(opt1)
+  
+  
+  
+  min_index <- which.min(obj_v)
+  #print(obj_v)
+  #print(min_index)
+  #print(c(min_index-1,my_list[[min_index]]$par))
+  theta1 = NULL
+  # print(exp(opt0$par))
+  # print(exp(opt1$par))
+  
+  #if (min_index - 1 == 0) {
+  if (min_index - 1 == 0) {
+    lambda = opt0$par
+    if (method == 1) {
+      theta1 =exp(lambda) 
+    }
+    if (method == 2) {
+      theta1 = c(20, 2) * sigmoid(lambda) + c(0.1, 0.5)
+    }
+    if (method ==3) {
+      theta1 = lambda
+    }
+  }
+  if (min_index - 1 == 1) {
+    lambda = opt1$par
+    if (method == 1) {
+      theta1 =exp(lambda) 
+    }
+    if (method == 2) {
+      theta1 = c(20, 30) * sigmoid(lambda) + c(0.1, 2)
+    }
+    if (method==3) {
+      theta1 = lambda
+    }
+  }
+  #print(c(min_index - 1, theta1))
+  
+  return(c(min_index - 1, theta1))
+  #print(c(min_index - 1, theta1))
+}
+
+
+lambda_estimate_func2 = function(error_tilde, method = 1,err=0.1)
+{
+  my_list <- list()
+  obj_v = rep(1e10, 4)
+  opt0 =NULL
+  opt1=NULL
+  opt2=NULL
+  opt3=NULL
+  # s=sd(error_tilde)
+  # #error_tilde=error_tilde+rnorm(length(error_tilde),0,err*s)
+  # #error_tilde[error_tilde==0]=rnorm(sum(error_tilde==0),0,err*s)
+  if (method == 1) {
+    L0 = function(lambda)
+    {
+      theta1 = exp(lambda)
+      #return(-mean(dPE(error_tilde / theta1[1], nu = theta1[2],log = T)) +log( theta1[1]))
+      
+      #error_tilde[error_tilde==0]=rnorm(sum(error_tilde==0),0,err*s)
+      xx= dPE(error_tilde / theta1[1],  nu = theta1[2],log=T)
+      #xx=xx[xx<log(10000)]
+      return(-mean(xx)+log(theta1[1])
+      )
+    }
+    opt0 = optim(c(0, 0), L0)
+    
+    L1 = function(lambda)
+    {
+      #theta1 = c(20, 29) * sigmoid(lambda) + c(1e-3, 1)
+      theta1 = exp((lambda))
+      s=1#sqrt(theta1[2]/(theta1[2]-2))
+      return(-(mean(log(
+        dt(error_tilde / theta1[1]*s, df = theta1[2]) / theta1[1]*s
+      ))))
+    }
+    #opt1=nlminb(c(1,3), L1, lower = c(0.01,0.01), upper = c(20,15))
+    opt1 = optim(c(0, 1), L1)
+    
+    L2 = function(lambda)
+    {
+      #theta1 = c(20, 29) * sigmoid(lambda) + c(1e-3, 1)
+      theta1 = c(exp(lambda[1]),exp(lambda[2]),lambda[3])
+      s=1#sqrt(theta1[2]/(theta1[2]-2))
+      return(-(mean(
+        dpearsonIV(error_tilde ,m=theta1[2],nu=theta1[3], location=0,scale = theta1[1],log=T) 
+      )))
+    }
+    #opt1=nlminb(c(1,3), L1, lower = c(0.01,0.01), upper = c(20,15))
+    opt2 = optim(c(0, 1,0), L2)
+    
+    L3 = function(lambda)
+    {
+      #theta1 = c(20, 29) * sigmoid(lambda) + c(1e-3, 1)
+      theta1 = c(exp(lambda[1]),exp(lambda[2]),lambda[3])
+      s=1#sqrt(theta1[2]/(theta1[2]-2))
+      return(-(mean(
+        dsgg(error_tilde ,beta=theta1[2],nu=theta1[3],lambda = theta1[1],log=T) 
+      )))
+    }
+    #opt1=nlminb(c(1,3), L1, lower = c(0.01,0.01), upper = c(20,15))
+    opt3 = optim(c(0, 1,0), L3)
+  }
+  
+  obj_v[1] = opt0$value
+  obj_v[2] = opt1$value
+  obj_v[3] = opt2$value
+  obj_v[4] = opt3$value
+  #print(opt0)
+  #print(opt1)
+  
+  
+  
+  min_index <- which.min(obj_v)
+ # print(obj_v)
+  #print(min_index)
+  #print(c(min_index-1,my_list[[min_index]]$par))
+  theta1 = NULL
+  # print(exp(opt0$par))
+  # print(exp(opt1$par))
+  
+  if (min_index - 1 == 0) {
+    lambda = opt0$par
+    if (method == 1) {
+      theta1 =exp(lambda) 
+    }
+    
+  }
+  if (min_index - 1 == 1) {
+    lambda = opt1$par
+    if (method == 1) {
+      theta1 =exp(lambda) 
+    }
+  }
+  if (min_index - 1 == 2) {
+    lambda = opt2$par
+    if (method == 1) {
+      theta1 =  c(exp(lambda[1]),exp(lambda[2]),lambda[3])
+    }
+  }
+  if (min_index - 1 == 3) {
+    lambda = opt3$par
+    if (method == 1) {
+      theta1 =  c(exp(lambda[1]),exp(lambda[2]),lambda[3])
+    }
+  }
+  print(c(min_index - 1, theta1))
+  return(c(min_index - 1, theta1))
+  #print(c(min_index - 1, theta1))
+}
+
+
+
+TS_NGQMLE_func = function(y, lambda, params, method = 1)
+{
+  n = length(y)
+  yt = y
+  w = params[1]
+  params1 = params[-1]
+  #cat("lambda:",lambda)
+  #cat("\n parmas:",params)
+  QMLEstimator = NULL
+  log_likelihood = NULL
+  #method=2
+  if (method == 1) {
+    L = function(theta1)
+    {
+      theta =exp(theta1)
+      result1 = eta_theta(yt, theta)
+      ht2 = result1$ht
+      eta2 = result1$hat_eta
+      return(- mean(eta_lambda(eta2, lambda, w, params1) - log(ht2) / 2))
+    }
+    opt = optim(log(theta0), L)
+    theta1 = opt$par
+    QMLEstimator =exp(theta1)
+    log_likelihood = -opt$value
+    
+   
+  }
+  if (method == 2) {
+    L = function(theta1)
+    {
+      theta = c(10,10,1)*sigmoid(theta1)+c(1e-5,1e-4,1e-4)
+      result1 = eta_theta(yt, theta)
+      ht2 = result1$ht
+      eta2 = result1$hat_eta
+      - mean(eta_lambda(eta2, lambda, w, params1) - log(ht2) / 2)
+    }
+    #cat("R#")
+    opt = optim(c(-3.5, -3.5, -2), L)
+    #opt= nlminb(log(c(0.1,0.1,0.1)), L, lower =c(-18,-3,-3), upper = c(0,0.4,0.4))
+    #opt=optim(c(0.25,0.15,0.6), L, NULL, method = "L-BFGS-B",lower =c(1e-8,0.05,0.1), upper = c(2,.95,0.95))
+    #QMLEstimator= sigmoid(-3.5)
+    theta1 = opt$par
+    #print(theta1)
+    QMLEstimator =c(10,10,1)*sigmoid(theta1)+c(1e-5,1e-4,1e-4)
+    log_likelihood = -opt$value
+  }
+  if (method == 3) {
+    L = function(theta1)
+    {
+      theta = theta1
+      result1 = eta_theta(yt, theta)
+      ht2 = result1$ht
+      eta2 = result1$hat_eta
+      - mean(eta_lambda(eta2, lambda, w, params1) - log(ht2) / 2)
+    }
+    #cat("R#")
+    #opt = optim(c(-2, -2, -2), L)
+    #opt= nlminb(log(c(0.1,0.1,0.1)), L, lower =c(-18,-3,-3), upper = c(0,0.4,0.4))
+    opt=optim(c(0.1,0.2,0.6), L, NULL, method = "L-BFGS-B",lower =c(0.0001,0.0001,0.005), upper = c(10,10,0.99))
+    #QMLEstimator=
+    theta1 = opt$par
+    #print(theta1)
+    QMLEstimator =theta1
+    log_likelihood = -opt$value
+  }
+  return(list(QMLEstimator = QMLEstimator, log_likelihood = n*log_likelihood,AIC=2*3-2*log_likelihood*n,BIC=3*log(n)-2*log_likelihood*n))
+}  
+
+
+
+
+TS_NGQMLE_process=function(yt,r=2,NGQMLE_params=c(0,2),Cr,method=method,method_lambda=1,Adaptive=1){
+  #The first step
+  #cat("#The first step")
+  result1=QMLEstimator_func(yt,r=r,method=method)
+  tilde_theta=result1$QMLEstimator
+  
+  #print( result1)
+  
+  result2=eta_theta(yt,tilde_theta)
+  
+  #print( result2)
+  
+  hat_lambda=lambda_estimate_func(result2$hat_eta,NGQMLE_params)
+  params2=NULL
+  params3=NULL
+  if(Adaptive == 1) {
+    params2=lambda_estimate_func2(result2$hat_eta,method=method_lambda)
+    params3 = params2[-2]
+    
+    #cat(",  params3:", params3, ", lambda_hat:", params2[2])
+    
+  }    #print("r2")
+  #print(hat_lambda)
+  ##The third step
+  result3=TS_NGQMLE_func(yt,hat_lambda,NGQMLE_params,method=method)
+  #result3=TS_NGQMLE_func(yt,1,NGQMLE_params)
+  print(result3)
+  result4= result3
+  if(Adaptive==1){
+    result4=TS_NGQMLE_func(yt,params2[2],params3,method=method)
+  }
+  #print(result4)
+  #print("r4")
+  hat_theta0=result3$QMLEstimator
+  hat_theta1=result4$QMLEstimator
+  return(list(GQMLE=list(tilde_theta=c(tilde_theta[1:2]/Cr^2,tilde_theta[3]),log_likelihood=result1$log_likelihood,AIC=result1$AIC,BIC=result1$BIC),
+              TS_NGQMLE0=list(hat_theta=c(hat_theta0[1:2]/Cr^2,hat_theta0[3]),log_likelihood=result3$log_likelihood,AIC=result3$AIC,BIC=result3$BIC),
+              TS_NGQMLE1=list(hat_theta=c(hat_theta1[1:2]/Cr^2,hat_theta1[3]),log_likelihood=result4$log_likelihood,AIC=result4$AIC,BIC=result4$BIC),
+              lambda_hat0=hat_lambda, lambda_hat1=params2[2],qmle_params=params3
+  ))
+}
+
+
+
+Simga2_hat=function(yt,theta,r=0.5,qmle_params){
+  #theta=theta_hat1
+  result=eta_theta(yt,theta)
+  eta=result$hat_eta
+  # cat("r-th moments:", mean(abs(eta)^r))
+  # cat("2r-th moments:", mean(abs(eta)^(2*r)))
+  ka_r=kappa_r(eta,r)
+  # cat("qmle_params:", qmle_params,"\n")
+  ka_f=kappa_f(eta,qmle_params[1],qmle_params[-1])
+  
+  v1=mean(theta[3]/(theta[2]*eta^2+theta[3]))
+  v2=mean((theta[3]/(theta[2]*eta^2+theta[3]))^2)
+  
+  J=matrix(NA,2,2)
+  J[1,1]=1/theta[2]^2
+  J[1,2]=v1/theta[2]/theta[3]/(1-v1)
+  J[2,1]=J[1,2]
+  J[2,2]=(1+v1)*v2/theta[3]^2/(1-v1)/(1-v2)
+  
+  I_star=J
+  I1=solve(I_star)
+  
+  e1=matrix(c(1,0),nrow=2)
+  S20=ka_f*I1+(theta[2])^2*(ka_r-ka_f)*(e1%*%t(e1))
+  S21=ka_r* I1
+  
+  
+  #S_omega=ka_f*mean((psimga_ptheta$psimga_po)^2)+(theta[1])^2*(ka_r-ka_f)
+  # cat("I_star^-1:",I1,"\n")
+  return(list(S2G=S21,S2T=S20,I=I_star,I0=J))
+}
+
+Simga2_star=function(yt,theta,r=0.5,qmle_params){
+  #theta=theta_hat1
+  result=eta_theta_2(yt,theta)
+  eta=result$hat_eta
+  # cat("r-th moments:", mean(abs(eta)^r))
+  # cat("2r-th moments:", mean(abs(eta)^(2*r)))
+  ka_r=kappa_r(eta,r)
+  # cat("qmle_params:", qmle_params,"\n")
+  ka_f=kappa_f(eta,qmle_params[1],qmle_params[-1])
+  # cat("kaf:",ka_f);
+  #  cat(", kar:",ka_r,"; ")
+  # # ##I_star
+  psimga_ptheta=result$psimga_ptheta
+  #print(psimga_ptheta$psimga_pa)
+  s1=mean(psimga_ptheta$psimga_po^2)
+  sigma_11=matrix(s1,1)
+  sigma_23_1=matrix(c(mean(psimga_ptheta$psimga_po*psimga_ptheta$psimga_pa),mean(psimga_ptheta$psimga_po*psimga_ptheta$psimga_pb)),nrow=2)
+  sigma_23_23=matrix(c(mean(psimga_ptheta$psimga_pa^2),mean(psimga_ptheta$psimga_pa*psimga_ptheta$psimga_pb),
+                       0,mean(psimga_ptheta$psimga_pb^2)),nrow=2,byrow=T)
+  sigma_23_23[2,1]= sigma_23_23[1,2]
+  I_star=sigma_23_23-sigma_23_1%*%solve(sigma_11)%*%t(sigma_23_1)
+  # print("sigma_23_23:")
+  #  print(sigma_23_23)
+  # # print(sigma_23_1%*%solve(sigma_11)%*%t(sigma_23_1))
+  
+  
+  e1=matrix(c(1,0),nrow=2)
+  I1=solve(I_star)
+  S20=ka_f*I1+(theta[2])^2*(ka_r-ka_f)*(e1%*%t(e1))
+  S21=ka_r* I1
+  
+  
+  #S_omega=ka_f*mean((psimga_ptheta$psimga_po)^2)+(theta[1])^2*(ka_r-ka_f)
+  # cat("I_star^-1:",I1,"\n")
+  return(list(S2G=S21,S2T=S20,I=I_star,I0=sigma_23_23))
+}
+
+Simga1_hat=function(yt,theta,r=0.5,qmle_params){
+  #theta=theta_hat1
+  result=eta_theta_2(yt,theta)
+  eta=result$hat_eta
+  # cat("r-th moments:", mean(abs(eta)^r))
+  # cat("2r-th moments:", mean(abs(eta)^(2*r)))
+  ka_r=kappa_r(eta,r)
+  # cat("qmle_params:", qmle_params,"\n")
+  ka_f=kappa_f(eta,qmle_params[1],qmle_params[-1])
+  # cat("kaf:",ka_f);
+  #  cat(", kar:",ka_r,"; ")
+  # # ##I_star
+  psimga_ptheta=result$psimga_ptheta
+  #print(psimga_ptheta$psimga_pa)
+  s1=mean(psimga_ptheta$psimga_po^2)
+  sigma_11=matrix(s1,1)
+  sigma_23_1=matrix(c(mean(psimga_ptheta$psimga_po*psimga_ptheta$psimga_pa),mean(psimga_ptheta$psimga_po*psimga_ptheta$psimga_pb)),nrow=2)
+  sigma_23_23=matrix(c(mean(psimga_ptheta$psimga_pa^2),mean(psimga_ptheta$psimga_pa*psimga_ptheta$psimga_pb),
+                       0,mean(psimga_ptheta$psimga_pb^2)),nrow=2,byrow=T)
+  sigma_23_23[2,1]= sigma_23_23[1,2]
+  J=matrix(NA,3,3)
+  J[1,1]=s1
+  J[2:3,1]=sigma_23_1
+  J[1,2:3]=t(sigma_23_1)
+  J[2:3,2:3]=sigma_23_23
+  b1=matrix(c(theta[1],theta[2],0),nrow=3)
+  S1=ka_f*solve(J)+(ka_r-ka_f)*(b1%*%t(b1))
+  SG=ka_r*solve(J)
+  return(list(S1=S1,SG=SG,J=J))
+}
+
+
+kappa_r=function(eta,r){
+  # cat("2r moments:",mean(abs(eta)^(2*r)))
+  return((mean(abs(eta)^(2*r))-1)*4/r^2)
+}
+
+
+Test_2p=function(yt,theta_hat,n_samples=n_samples){
+  result=eta_theta(yt,theta_hat)
+  eta_hat=result$hat_eta
+  x1=log(theta_hat[2]*eta_hat^2+theta_hat[3])
+  gamma_hat=mean(x1)
+  sigma_u_hat=mean(x1^2)-gamma_hat^2
+  Tn=sqrt(n_samples)*gamma_hat/sqrt(sigma_u_hat)
+  #cat("Tn: ",Tn,"\n")
+  
+  return(list(Tn=Tn,pvalue=pnorm(Tn)))
+}
+
+Test_1p=function(yt,theta_hat,n_samples=n_samples){
+  result=eta_theta(yt,theta_hat)
+  eta_hat=result$hat_eta
+  x1=log(theta_hat[2]*eta_hat^2+theta_hat[3])
+  gamma_hat=mean(x1)
+  sigma_u_hat=mean(x1^2)-gamma_hat^2
+  Tn=sqrt(n_samples)*gamma_hat/sqrt(sigma_u_hat)
+  #cat("Tn: ",Tn,"\n")
+  
+  return(list(Tn=Tn,pvalue=1-pnorm(Tn)))
+}
+
+
+eta_theta=function(yt,theta){
+  omega=theta[1]
+  alpha=theta[2]
+  beta=theta[3]
+  n=length(yt)
+  ht=rep(0,n)
+  ht[1]=0.1
+  eta=rep(0,n)
+  psimga_po=rep(0,n)
+  psimga_pa=rep(0,n)
+  psimga_pb=rep(0,n)
+  
+  for(i in 2:length(yt)){
+    ht[i]=omega+alpha*yt[i-1]^2+beta*ht[i-1]
+    eta[i]=yt[i]/sqrt(ht[i])
+    
+    psimga_po[i]=psimga_po[i-1]+beta^(i-1)
+    
+    betav=exp(seq(i-2,0,by=-1)*log(beta))
+    
+    yt2=yt[1:(i-1)]^2
+    psimga_pa[i]=sum(betav*yt2)
+    #cat("i",i,"\n")
+    #print(length(betav))
+    #print(length(yt2))
+    if(i>=3){
+      betav2=exp(seq(i-3,0,by=-1)*log(beta))
+      psimga_pb[i]=sum(seq(i-2,1,-1)* betav2*(omega+alpha*yt[1:(i-2)]^2))
+    }
+    
+  }
+  return(list(hat_eta=eta,ht=ht,psimga_ptheta=list(psimga_po=psimga_po/ht,psimga_pa=psimga_pa/ht,psimga_pb=psimga_pb/ht)))
+}
+
+
+eta_theta_2=function(yt,theta){
+  omega=theta[1]
+  alpha=theta[2]
+  beta=theta[3]
+  n=length(yt)
+  ht=rep(0,n)
+  ht[1]=0.1
+  eta=rep(0,n)
+  psimga_po=rep(0,n)
+  psimga_pa=rep(0,n)
+  psimga_pb=rep(0,n)
+  
+  for(i in 2:length(yt)){
+    ht[i]=omega+alpha*yt[i-1]^2+beta*ht[i-1]
+    eta[i]=yt[i]/sqrt(ht[i])
+    
+    psimga_po[i]=psimga_po[i-1]+beta^(i-1)
+    
+    betav=exp(seq(i-2,0,by=-1)*log(beta))
+    
+    yt2=yt[1:(i-1)]^2
+    psimga_pa[i]=sum(betav*yt2)
+    #cat("i",i,"\n")
+    #print(length(betav))
+    #print(length(yt2))
+    if(i>=3){
+      betav2=exp(seq(i-3,0,by=-1)*log(beta))
+      psimga_pb[i]=sum(seq(i-2,1,-1)* betav2*(omega+alpha*yt[1:(i-2)]^2))
+    }
+    
+  }
+  return(list(hat_eta=eta,ht=ht,psimga_ptheta=list(psimga_po=psimga_po/ht,psimga_pa=psimga_pa/ht,psimga_pb=psimga_pb/ht)))
+}
+
+kappa_r=function(eta,r){
+  # cat("2r moments:",mean(abs(eta)^(2*r)))
+  return((mean(abs(eta)^(2*r))-1)*4/r^2)
+}
+
+kappa_f=function(eta,lambda,data_params){
+  if(data_params[1]==0){
+    s=4*mean(hgg_1(eta,data_params[2],lambda)^2,na.rm = T)/lambda^2/mean(hgg_2(eta,data_params[2],lambda),na.rm = T)^2
+    return(s)
+  }
+  if(data_params[1]==1){
+    # cat("d2:",mean(hgg_2(eta,data_params[2],lambda)))
+    s=4*mean(ht_1(eta,data_params[2],lambda)^2,na.rm = T)/lambda^2/mean(ht_2(eta,data_params[2],lambda),na.rm = T)^2
+    return(s)
+  }
+  if(data_params[1]==2){
+    # cat("d2:",mean(hgg_2(eta,data_params[2],lambda)))
+    s=4*mean(hPIV_1(eta,data_params[2],data_params[3],lambda)^2,na.rm = T)/lambda^2/mean(hPIV_2(eta,data_params[2],data_params[3],lambda),na.rm = T)^2
+    return(s)
+    if(data_params[1]==2){
+    # cat("d2:",mean(hgg_2(eta,data_params[2],lambda)))
+    s=4*mean(hPIV_1(eta,data_params[2],data_params[3],lambda)^2,na.rm = T)/lambda^2/mean(hPIV_2(eta,data_params[2],data_params[3],lambda),na.rm = T)^2
+    return(s)
+    }
+    if(data_params[1]==2){
+      # cat("d2:",mean(hgg_2(eta,data_params[2],lambda)))
+      s=4*mean(hPIV_1(eta,data_params[2],data_params[3],lambda)^2,na.rm = T)/lambda^2/mean(hPIV_2(eta,data_params[2],data_params[3],lambda),na.rm = T)^2
+      return(s)
+      if(data_params[1]==2){
+        # cat("d2:",mean(hgg_2(eta,data_params[2],lambda)))
+        s=4*mean(hPIV_1(eta,data_params[2],data_params[3],lambda)^2,na.rm = T)/lambda^2/mean(hPIV_2(eta,data_params[2],data_params[3],lambda),na.rm = T)^2
+        return(s)
+      }
+}
+xi_s=function(s,yt,theta){
+  result=eta_theta_2(yt,theta)
+  eta=result$hat_eta
+  eta_s=abs(eta)^s-mean(abs(eta)^s)
+  return(eta_s)
+}
+
+
+Sigma_rs2=function(m,s,r,yt,theta,qmle_params,lambda){
+  n=length(yt)
+  result=eta_theta_2(yt,theta)
+  #print(result)
+  eta=result$hat_eta
+  
+  eta_s=abs(eta)^s
+  a1s=mean(eta_s)
+  xi_s=eta_s-a1s
+  a2s=var(eta_s)
+  #print(xi_s)
+  #xi_r=xi_s(r,yt,theta)
+  
+  
+  
+  bar_dt=c(mean(result$psimga_ptheta$psimga_pa,na.rm = T),mean(result$psimga_ptheta$psimga_pb,na.rm = T))
+  
+  #cat("bar:")
+  #print(bar_dt)  
+  b_eta=2/r*mean(xi_s*(1-abs(eta)^r))
+  b_h=NA 
+  #cat("b_eta: ",b_eta,"\n")
+  if(qmle_params[1]==0){
+    b_h=2*mean(hgg_1(eta,qmle_params[2],lambda)*xi_s,na.rm = T)/lambda/mean(hgg_2(eta,qmle_params[2],lambda),na.rm = T)
+  }
+  if(qmle_params[1]==1){
+    b_h=2*mean(ht_1(eta,qmle_params[2],lambda)*xi_s,na.rm = T)/lambda/mean(ht_2(eta,qmle_params[2],lambda),na.rm = T)
+  }
+  
+  
+  V1=matrix(NA,m,2)
+  W1=matrix(NA,m,2)
+  rho=matrix(NA,m,1)
+  v1=mean(theta[3]/(theta[2]*eta^2+theta[3]))
+  v2=mean((theta[3]/(theta[2]*eta^2+theta[3]))^2)
+  b2=mean(xi_s/((theta[2]*eta^2+theta[3])))
+  #print(result$psimga_ptheta$psimga_po)
+  for(k in 1:m){
+    #p1=mean(xi_s[1:(n-k)]*result$psimga_ptheta$psimga_po[(k+1):n],na.rm = T)
+    #print(xi_s[1:(n-k)]*result$psimga_ptheta$psimga_po[(k+1):n])
+    p2=mean(xi_s[1:(n-k)]*result$psimga_ptheta$psimga_pa[(k+1):n],na.rm = T)
+    #p3=mean(xi_s[1:(n-k)]*result$psimga_ptheta$psimga_pb[(k+1):n],na.rm = T)\
+    p3=v1^(k-1)/(1-v1)*b2
+    psk=c(0,p3)
+    V1[k,]=psk
+    #print(psk)
+    W1[k,]=(b_h-b_eta)*bar_dt-b_h*psk
+    rho[k,1]=mean(xi_s[1:(n-k)]*xi_s[(k+1):n])/sqrt(n-k)/a2s
+  }
+  # print("V1,W1:")
+  #print(V1)
+  #print(W1)
+  
+  ka_r=kappa_r(eta,r)
+  ka_f=kappa_f(eta,lambda,qmle_params)
+  
+  J=matrix(NA,2,2)
+  J[1,1]=1/theta[2]^2
+  J[1,2]=v1/theta[2]/theta[3]/(1-v1)
+  J[2,1]=J[1,2]
+  J[2,2]=(1+v1)*v2/theta[3]^2/(1-v1)/(1-v2)
+  b1=matrix(c(theta[2],0),nrow=2)
+  J_inv=solve(J)
+  S1=ka_f*J_inv+(ka_r-ka_f)*(b1%*%t(b1))
+  #J=result1$I0
+  Sigma1=S1
+  # print(result1)
+  # print(J)
+  V1=1/2*s*a1s*V1%*%solve(J)
+  N=matrix(NA,m,m+2)
+  M=matrix(NA,m+2,m+2)
+  N[,1:m]=diag(rep(1,m))
+  N[,(m+1):(m+2)]=-V1
+  M[1:m,1:m]=a2s^2*diag(rep(1,m))
+  M[1:m,(m+1):(m+2)]=W1
+  M[(m+1):(m+2),1:m]=t(W1)
+  
+  #print(Sigma1)
+  M[(m+1):(m+2),(m+1):(m+2)]=J%*%Sigma1%*%J
+  #print(M)
+  #print(N)
+  Sigma0=1/a2s^2*N%*%M%*%t(N)
+  # print(Sigma0)
+  # print(rho)
+  #cat("a")
+  Qm=rep(NA,m)
+  pvalue=rep(NA,m)
+  for(i in 1:m){
+    Sigma0sub=Sigma0[1:i,1:i]
+    rhosub=rho[1:i]
+    QMsub=n*(n+2)*t(rhosub)%*%solve(Sigma0sub)%*%rhosub
+    Qm[i]=QMsub[1,1]
+    pvalue[i]=1-pchisq(Qm[i],i)
+  }
+  return(list(Qm=Qm,pvalue= pvalue))
+}
+
+
+
+AA=NA
+Sigma_rs=function(m,s,r,yt,theta,qmle_params,lambda){
+  n=length(yt)
+  result=eta_theta_2(yt,theta)
+  #print(result)
+  eta=result$hat_eta
+  
+  eta_s=abs(eta)^s
+  a1s=mean(eta_s)
+  xi_s=eta_s-a1s
+  a2s=var(eta_s)
+  #kt=c(result$psimga_ptheta$psimga_po,result$psimga_ptheta$psimga_pa,result$psimga_ptheta$psimga_pb)
+  psimga_ptheta=result$psimga_ptheta
+  
+  bar_dt=c(mean(psimga_ptheta$psimga_po,na.rm = T),mean(psimga_ptheta$psimga_pa,na.rm = T),mean(psimga_ptheta$psimga_pb,na.rm = T))
+  
+  # cat("bar:")
+  #print(bar_dt)  
+  b_eta=2/r*mean(xi_s*(1-abs(eta)^r))
+  w_s=NA 
+  # cat("b_eta: ",b_eta,"\n")
+  if(qmle_params[1]==0){
+    w_s=2*mean(hgg_1(eta,qmle_params[2],lambda)*xi_s,na.rm = T)/lambda/mean(hgg_2(eta,qmle_params[2],lambda),na.rm = T)
+  }
+  if(qmle_params[1]==1){
+    w_s=2*mean(ht_1(eta,qmle_params[2],lambda)*xi_s,na.rm = T)/lambda/mean(ht_2(eta,qmle_params[2],lambda),na.rm = T)
+  }
+  
+  P=matrix(NA,m,3)
+  rho=matrix(NA,m,1)
+  #print(result$psimga_ptheta$psimga_po)
+  for(k in 1:m){
+    p1=mean(xi_s[1:(n-k)]*psimga_ptheta$psimga_po[(k+1):n],na.rm = T)
+    #print(xi_s[1:(n-k)]*result$psimga_ptheta$psimga_po[(k+1):n])
+    p2=mean(xi_s[1:(n-k)]*psimga_ptheta$psimga_pa[(k+1):n],na.rm = T)
+    p3=mean(xi_s[1:(n-k)]*psimga_ptheta$psimga_pb[(k+1):n],na.rm = T)
+    P[k,]=c(p1,p2,p3)
+    rho[k,1]=mean(xi_s[1:(n-k)]*xi_s[(k+1):n])/sqrt(n-k)/a2s
+  }
+  
+  ka_r=kappa_r(eta,r)
+  ka_f=kappa_f(eta,lambda,qmle_params)
+  # cat("kaf:",ka_f);
+  #  cat(", kar:",ka_r,"; ")
+  
+  
+  #print(psimga_ptheta$psimga_pa)
+  s1=mean(psimga_ptheta$psimga_po^2)
+  sigma_11=matrix(s1,1)
+  sigma_23_1=matrix(c(mean(psimga_ptheta$psimga_po*psimga_ptheta$psimga_pa),mean(psimga_ptheta$psimga_po*psimga_ptheta$psimga_pb)),nrow=2)
+  sigma_23_23=matrix(c(mean(psimga_ptheta$psimga_pa^2),mean(psimga_ptheta$psimga_pa*psimga_ptheta$psimga_pb),
+                       0,mean(psimga_ptheta$psimga_pb^2)),nrow=2,byrow=T)
+  sigma_23_23[2,1]= sigma_23_23[1,2]
+  J=matrix(NA,3,3)
+  J[1,1]=s1
+  J[2:3,1]=sigma_23_1
+  J[1,2:3]=t(sigma_23_1)
+  J[2:3,2:3]=sigma_23_23
+  b1=matrix(c(theta[1],theta[2],0),nrow=3)
+  J_inv=solve(J)
+  S1=ka_f*J_inv+(ka_r-ka_f)*(b1%*%t(b1))
+  Sigma1=S1
+  # print(s*a1s*w_s/a2s^2*P%*%J_inv%*%t(P))
+  # print(s^2*a1s^2/4/a2s^2*P%*%Sigma1%*%t(P))
+  Sigma0=diag(rep(1,m))+s*a1s*w_s/a2s^2*P%*%J_inv%*%t(P)+s^2*a1s^2/4/a2s^2*P%*%Sigma1%*%t(P)
+  
+  Qm=rep(NA,m)
+  pvalue=rep(NA,m)
+  for(i in 1:m){
+    Sigma0sub=Sigma0[1:i,1:i]
+    rhosub=rho[1:i]
+    QMsub=n*(n+2)*t(rhosub)%*%solve(Sigma0sub)%*%rhosub
+    Qm[i]=QMsub[1,1]
+    pvalue[i]=1-pchisq(Qm[i],i)
+  }
+  return(list(Qm=Qm,pvalue= pvalue))
+}
+
+Sigma_rs2=function(m,s,r,yt,theta,qmle_params,lambda){
+  n=length(yt)
+  result=eta_theta_2(yt,theta)
+  #print(result)
+  eta=result$hat_eta
+  
+  eta_s=abs(eta)^s
+  a1s=mean(eta_s)
+  xi_s=eta_s-a1s
+  a2s=var(eta_s)
+  #print(xi_s)
+  
+  v1=mean(theta[3]/(theta[2]*eta^2+theta[3]))
+  v2=mean((theta[3]/(theta[2]*eta^2+theta[3]))^2)
+  
+  bar_dt=c(mean(result$psimga_ptheta$psimga_pa,na.rm = T),mean(result$psimga_ptheta$psimga_pb,na.rm = T))
+  
+  #cat("bar:")
+  #print(bar_dt)  
+  b_eta=2/r*mean(xi_s*(1-abs(eta)^r))
+  w_s=NA 
+  if(qmle_params[1]==0){
+    w_s=2*mean(hgg_1(eta,qmle_params[2],lambda)*xi_s,na.rm = T)/lambda/mean(hgg_2(eta,qmle_params[2],lambda),na.rm = T)
+  }
+  if(qmle_params[1]==1){
+    w_s=2*mean(ht_1(eta,qmle_params[2],lambda)*xi_s,na.rm = T)/lambda/mean(ht_2(eta,qmle_params[2],lambda),na.rm = T)
+  }
+  
+  
+  P=matrix(NA,m,2)
+  W1=matrix(NA,m,2)
+  rho=matrix(NA,m,1)
+  b2=mean(xi_s/((theta[2]*eta^2+theta[3])))
+  #print(result$psimga_ptheta$psimga_po)
+  for(k in 1:m){
+    p3=v1^(k-1)/(1-v1)*b2
+    psk=c(0,p3)
+    P[k,]=psk
+    #print(psk)
+    rho[k,1]=mean(xi_s[1:(n-k)]*xi_s[(k+1):n])/sqrt(n-k)/a2s
+  }
+  # print("V1,W1:")
+  #print(V1)
+  #print(W1)
+  
+  ka_r=kappa_r(eta,r)
+  ka_f=kappa_f(eta,lambda,qmle_params)
+  
+  J=matrix(NA,2,2)
+  J[1,1]=1/theta[2]^2
+  J[1,2]=v1/theta[2]/theta[3]/(1-v1)
+  J[2,1]=J[1,2]
+  J[2,2]=(1+v1)*v2/theta[3]^2/(1-v1)/(1-v2)
+  b1=matrix(c(theta[2],0),nrow=2)
+  J_inv=solve(J)
+  S1=ka_f*J_inv+(ka_r-ka_f)*(b1%*%t(b1))
+  
+  Sigma1=S1
+  # print(s*a1s*w_s/a2s^2*P%*%J_inv%*%t(P))
+  # print(s^2*a1s^2/4/a2s^2*P%*%Sigma1%*%t(P))
+  Sigma0=diag(rep(1,m))+s*a1s*w_s/a2s^2*P%*%J_inv%*%t(P)+s^2*a1s^2/4/a2s^2*P%*%Sigma1%*%t(P)
+  
+  Qm=rep(NA,m)
+  pvalue=rep(NA,m)
+  for(i in 1:m){
+    Sigma0sub=Sigma0[1:i,1:i]
+    rhosub=rho[1:i]
+    QMsub=n*(n+2)*t(rhosub)%*%solve(Sigma0sub)%*%rhosub
+    Qm[i]=QMsub[1,1]
+    pvalue[i]=1-pchisq(Qm[i],i)
+  }
+  return(list(Qm=Qm,pvalue= pvalue))
+}
+
+
+
+
+m=12
+s=1
+(res1$pvalue<0.05)+0
+#theta_hat1=c(0.01,0.2,0.6)
+theta_hat1=theta0
+for(j in 6:6){
+  print(j)
+  res1=Sigma_rs(j,s,r,yt,theta_hat1,qmle_params1,lambda_hat1)
+  Sigma_h(j,s,r,yt,theta_hat1,qmle_params1,lambda_hat1)
+  #res2=Sigma_rs_func(j,s,r,yt,theta_hat1,qmle_params1,lambda_hat1)
+  res3=Sigma_h2(j,s,r,yt,theta_hat1,qmle_params1,lambda_hat1)
+  #res4=Sigma_rs22(j,s,r,yt,theta_hat1,qmle_params1,lambda_hat1)
+  print("\n===============================================================")
+  print(res1)
+  #print(res2)
+  print(res3)
+  #print(res4)
+  print("===============================================================")
+  
+}
+
+
+
+n_samples=1000
+eta = reta(n_samples + 1000, params = data_params)
+theta0=c(0.5,0.2,0.9,0.2)
+yt=rGarch(n_samples, theta0, eta, m = 1)
+plot(yt,type="l")
+ngqmle_params = c(1,7)
+r=1
+theta0=c(0.1,0.1,0.1,0.7)
+results = TS_NGQMLE_process(yt,
+                            r,
+                            ngqmle_params,
+                            1,
+                            method = 1,
+                            Adaptive = 1)
+
+theta_tilde = results$GQMLE$tilde_theta
+theta_hat0 = results$TS_NGQMLE0$hat_theta
+theta_hat1 = results$TS_NGQMLE1$hat_theta
+lambda_hat0 = results$lambda_hat0
+lambda_hat1 = results$lambda_hat1
+
+qmle_params1 = results$qmle_params
+
+# p0=Test_2p(yt, theta_tilde, n_samples = n)$pvalue
+# p1=Test_2p(yt, theta_hat0, n_samples = n)$pvalue
+p2=Test_2p(yt, theta_hat1, n_samples = n)$pvalue
+
+Sigma_rs(6,s,r,yt,theta_hat1,qmle_params1,lambda_hat1)
+Sigma_rs2(6,s,r,yt,theta_hat1,qmle_params1,lambda_hat1)
+
+
+
+
+
+
+LADEARMA=function(yt,method=1)
+{
+  n=length(yt)
+  y=yt[-1]
+  QMLEstimator=NULL
+  log_likelihood=NULL
+  if (method == 1) {
+    L = function(lambda)
+    {
+      theta = exp(lambda)
+      result1 = eta_theta(yt, theta)
+      ht2 = result1$ht
+      eta2 = result1$hat_eta
+      return(mean(abs(log(y ^ 2) - log(ht2))))
+    }
+    
+    opt = optim(c(-1, -1, -1), L)
+    lambda = opt$par
+    LADEstimator = exp(lambda)
+    log_likelihood = -opt$value
+  }
+  return(list(LADEstimator=c(LADEstimator[1]/C,LADEstimator[2]/C,LADEstimator[3]),log_likelihood=log_likelihood))
+}
+
+Sigma_h=function(m,r,yt,theta,qmle_params,lambda){
+  n=length(yt)
+  result=eta_theta_2(yt,theta)
+  #print(result)
+  eta=result$hat_eta
+  
+  h1_eta=NA
+  h2_eta=NA
+  
+  print("qmle_params[1]")
+  print(qmle_params[1])
+  if(qmle_params[1]==0){
+    h1_eta=hgg_1(eta,qmle_params[2],lambda)
+    h2_eta=hgg_2(eta,qmle_params[2],lambda)
+  }
+  if(qmle_params[1]==1){
+    h1_eta=ht_1(eta,qmle_params[2],lambda)
+    h2_eta=ht_2(eta,qmle_params[2],lambda)
+  }
+  if(qmle_params[1]==2){
+    h1_eta=hPIV_1(eta,qmle_params[2],qmle_params[3],lambda)
+    h2_eta=hPIV_2(eta,qmle_params[2],qmle_params[3],lambda)
+  }
+  if(qmle_params[1]==2){
+    h1_eta=hsgg_1(eta,qmle_params[2],qmle_params[3],lambda)
+    h2_eta=hsgg_2(eta,qmle_params[2],qmle_params[3],lambda)
+  }
+  #print(h1_eta)
+  #h1_eta[is.na( h1_eta)]=0
+  #h2_eta[is.na(h2_eta)]=0
+  
+  h1_eta=h1_eta-mean(h1_eta)
+  s2_h1=var(h1_eta)
+  bar_h2=mean(h2_eta)
+  #kt=c(result$psimga_ptheta$psimga_po,result$psimga_ptheta$psimga_pa,result$psimga_ptheta$psimga_pb)
+  psimga_ptheta=result$psimga_ptheta
+  
+  P=matrix(NA,m,3)
+  rho=matrix(NA,m,1)
+  #print(result$psimga_ptheta$psimga_po)
+  for(k in 1:m){
+    p1=mean(h1_eta[1:(n-k)]*psimga_ptheta$psimga_po[(k+1):n],na.rm = T)
+    p2=mean(h1_eta[1:(n-k)]*psimga_ptheta$psimga_pa[(k+1):n],na.rm = T)
+    p3=mean(h1_eta[1:(n-k)]*psimga_ptheta$psimga_pb[(k+1):n],na.rm = T)
+    P[k,]=c(p1,p2,p3)
+    rho[k,1]=mean(h1_eta[1:(n-k)]*h1_eta[(k+1):n])/sqrt(n-k)/s2_h1
+  }
+  
+  ka_r=kappa_r(eta,r)
+  ka_f=kappa_f(eta,lambda=lambda,data_params=qmle_params)
+  # cat("kaf:",ka_f);
+  #  cat(", kar:",ka_r,"; ")
+  
+  
+  #print(psimga_ptheta$psimga_pa)
+  s1=mean(psimga_ptheta$psimga_po^2)
+  sigma_11=matrix(s1,1)
+  sigma_23_1=matrix(c(mean(psimga_ptheta$psimga_po*psimga_ptheta$psimga_pa),mean(psimga_ptheta$psimga_po*psimga_ptheta$psimga_pb)),nrow=2)
+  sigma_23_23=matrix(c(mean(psimga_ptheta$psimga_pa^2),mean(psimga_ptheta$psimga_pa*psimga_ptheta$psimga_pb),
+                       0,mean(psimga_ptheta$psimga_pb^2)),nrow=2,byrow=T)
+  sigma_23_23[2,1]= sigma_23_23[1,2]
+  J=matrix(NA,3,3)
+  J[1,1]=s1
+  J[2:3,1]=sigma_23_1
+  J[1,2:3]=t(sigma_23_1)
+  J[2:3,2:3]=sigma_23_23
+  b1=matrix(c(theta[1],theta[2],0),nrow=3)
+  J_inv=solve(J)
+  S1=ka_f*J_inv+(ka_r-ka_f)*(b1%*%t(b1))
+  Sigma1=S1
+  Sigma0=diag(rep(1,m))-2/s2_h1*P%*%J_inv%*%t(P)+1/ka_f/s2_h1*P%*%Sigma1%*%t(P)
+  
+  Qm=rep(NA,m)
+  pvalue=rep(NA,m)
+  for(i in 1:m){
+    Sigma0sub=Sigma0[1:i,1:i]
+    rhosub=rho[1:i]
+    QMsub=n*(n+2)*t(rhosub)%*%solve(Sigma0sub)%*%rhosub
+    Qm[i]=QMsub[1,1]
+    pvalue[i]=1-pchisq(Qm[i],i)
+  }
+  return(list(Qm=Qm,pvalue= pvalue))
+}

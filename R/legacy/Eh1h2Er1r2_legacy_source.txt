@@ -1,0 +1,1177 @@
+###generate innov. with t or gg distri.
+###if w=1, innov. with t(t_df)-dist;if w=0 ,innov. with gg(gg_nu)
+library(stabledist)
+
+##t 鍒嗗竷鐨刪t_1鍜宧t_2鏄湁鐣岀殑
+
+library(PearsonDS)
+library(gamlss.dist)
+library(GeneralizedHyperbolic)
+
+eta.generation=function(n,t_df,gg_nu,w)
+{ 
+id=rbinom(n,1,w)
+inno=NULL
+inno[id==0]=rPE(n,nu=gg_nu)[id==0]
+inno[id==1]=rt(n,df=t_df)[id==1]/sqrt(t_df/(t_df-2))
+inno
+}
+#define h(x,lambda), h.l(x,lambda),h.ll(x,lambda),h.x(x,lambda),h.xx(x,lambda)
+ht=expression(-(df+1)/2*log(1+(x/lambda)^2/(df-2))-log(lambda))
+ht
+
+
+ht=expression(-(df+1)/2*log(1+(x/lambda)^2/(df))-log(lambda))
+ht
+
+
+hgg0=expression(-(x/lambda)^beta*C-log(lambda))
+hgg1=expression(-(-x/lambda)^beta*C-log(lambda))
+D(hgg0,"lambda")
+
+D(ht,"lambda")
+
+D(hgg0,"lambda")
+D(D(hgg,"lambda"),"lambda")
+
+D(D(ht,"lambda"),"lambda")
+
+hgg_0 = function(x, beta, lambda) {
+  C = (gamma(3 / beta) / gamma(1 / beta)) ^ (beta / 2)
+  y = -(abs(x)/lambda)^beta*C-log(lambda)
+  return(y)
+}
+
+hgg_1 = function(x, beta, lambda) {
+  C = (gamma(3 / beta) / gamma(1 / beta)) ^ (beta / 2)
+  dx0 = (abs(x) / lambda) ^ (beta - 1) * (beta * (abs(x) / lambda ^ 2)) * C - 1 /
+    lambda
+  #dx1 = -((-x / lambda) ^ (beta - 1) * (beta * (x / lambda ^ 2)) * C + 1 /
+     #       lambda)
+  #dx0[is.nan(dx0)] <- 0
+  #dx1[is.nan(dx1)] <- 0
+  #dx = dx0 + dx1
+  return(dx0)
+}
+
+hgg_2=function(x,beta,lambda){
+  C = (gamma(3 / beta) / gamma(1 / beta)) ^ (beta / 2)
+  dx0=-(((abs(x) /lambda)^(beta - 1) * (beta * (abs(x)  * (2 * lambda)/(lambda^2)^2)) + 
+           (abs(x) /lambda)^((beta - 1) - 1) * ((beta - 1) * (abs(x) /lambda^2)) * 
+           (beta * (abs(x) /lambda^2))) * C - 1/lambda^2)
+ # dx1=-(((-x/lambda)^((beta - 1) - 1) * ((beta - 1) * (x/lambda^2)) * 
+  #         (beta * (x/lambda^2)) - (-x/lambda)^(beta - 1) * (beta * 
+ #                                                              (x * (2 * lambda)/(lambda^2)^2))) * C - 1/lambda^2)
+  #dx0[is.nan(dx0)]<-0
+  #dx1[is.nan(dx1)]<-0
+  #dx=dx0+dx1
+  return(dx0)
+}
+
+
+
+ht_1 = function(x, df, lambda) {
+  dx = -(-(df + 1)/2 * (2 * (x/lambda^2 * (x/lambda))/(df - 2)/(1 + (x/lambda)^2/(df - 2))) + 1/lambda)
+  return(dx)
+}
+
+ht_2 = function(x, df, lambda) {
+  dx =1/lambda^2 + -(df + 1)/2 * (2 * (x/lambda^2 * (x/lambda^2) + 
+                                         x * (2 * lambda)/(lambda^2)^2 * (x/lambda))/(df - 2)/(1 + 
+                                                                                                 (x/lambda)^2/(df - 2)) - 2 * (x/lambda^2 * (x/lambda))/(df - 
+                                                                                                                                                           2) * (2 * (x/lambda^2 * (x/lambda))/(df - 2))/(1 + (x/lambda)^2/(df - 
+                                                                                                                                                                                                                              2))^2)
+  
+  return(dx)
+}
+
+
+ht_1 = function(x, df, lambda) {
+  dx =-(-(df + 1)/2 * (2 * (x/lambda^2 * (x/lambda))/(df)/(1 + (x/lambda)^2/(df))) + 
+          1/lambda) 
+    
+  return(dx)
+}
+
+ht_2 = function(x, df, lambda) {
+  dx =1/lambda^2 + -(df + 1)/2 * (2 * (x/lambda^2 * (x/lambda^2) + 
+                                         x * (2 * lambda)/(lambda^2)^2 * (x/lambda))/(df)/(1 + (x/lambda)^2/(df)) - 
+                                    2 * (x/lambda^2 * (x/lambda))/(df) * (2 * (x/lambda^2 * (x/lambda))/(df))/(1 + 
+                                                                                                                 (x/lambda)^2/(df))^2)
+  return(dx)
+}
+
+install.packages("gsl")
+library(gsl)
+# 瀹夎骞跺姞杞?pracma 鍖?
+install.packages("pracma")
+library(pracma)
+
+hPIV=expression(-m*log(1+(x/lambda)^2)-nu*atan(x/lambda)-log(lambda))
+
+D(D(hPIV,"lambda"),"lambda")
+
+hPIV_1=function(x,m,nu,lambda){
+  y=m * (2 * (x/lambda^2 * (x/lambda))/(1 + (x/lambda)^2)) + nu * 
+    (x/lambda^2/(1 + (x/lambda)^2)) - 1/lambda
+  return(y)
+}
+hPIV_2=function(x,m,nu,lambda){
+  y=-(nu * (x * (2 * lambda)/(lambda^2)^2/(1 + (x/lambda)^2) - x/lambda^2 * 
+              (2 * (x/lambda^2 * (x/lambda)))/(1 + (x/lambda)^2)^2) + m * 
+        (2 * (x/lambda^2 * (x/lambda^2) + x * (2 * lambda)/(lambda^2)^2 * 
+                (x/lambda))/(1 + (x/lambda)^2) - 2 * (x/lambda^2 * (x/lambda)) * 
+           (2 * (x/lambda^2 * (x/lambda)))/(1 + (x/lambda)^2)^2) - 
+        1/lambda^2)
+  return(y)
+}
+hPIV_m=function(x,m,nu,lambda){
+  psi_plus <- psi(m + (nu/2)*1i)    # 蠄(m + 谓i/2)
+  psi_minus <- psi(m - (nu/2)*1i)   # 蠄(m - 谓i/2)
+  psi_m_half <- digamma(m - 1/2)        # 蠄(m - 1/2)
+  psi_m <- digamma(m)                   # 蠄(m)
+  y=-log(1 + (x/lambda)^2)+psi_plus + psi_minus - psi_m_half - psi_m
+  return(Re(y))
+}
+
+hPIV_m2(1:10,2,1,1)
+hPIV_1_m=function(x,m,nu,lambda){
+  y=2 * (x/lambda^2 * (x/lambda))/(1 + (x/lambda)^2)
+  return(y)
+}
+
+# gsl鍖呮彁渚涘鏁扮壒娈婂嚱鏁?
+if (!require("gsl")) install.packages("gsl")
+library(gsl)
+
+# gsl鍖呮敮鎸佸鏁皃si鍑芥暟
+z <- 2 + 3i
+result <- psi_1(z)  # psi_1鏄痶rigamma鍑芥暟
+print(result)
+
+hPIV_m2=function(x,m,nu,lambda){
+  trigamma_plus <- psi1(m + (nu/2)*1i)    # 蠄鈦铰光伨(m + 谓i/2)
+  trigamma_minus <- psi1(m - (nu/2)*1i)   # 蠄鈦铰光伨(m - 谓i/2)
+  trigamma_m_half <- trigamma(m - 1/2)        # 蠄鈦铰光伨(m - 1/2)
+  trigamma_m <- trigamma(m)                   # 蠄鈦铰光伨(m)
+  
+  # 缁勫悎鎵€鏈夐」锛堟敞鎰忥細鏁版嵁鐩稿叧椤规秷澶变簡锛?
+  result <- trigamma_plus + trigamma_minus - trigamma_m_half - trigamma_m
+  
+  return(result)
+}
+
+hPIV_m2 <- function(x, m, nu, lambda, h = 1e-6) {
+  # 鏁板€艰绠楀鏁板弬鏁扮殑 Trigamma 鍑芥暟
+  trigamma_complex <- function(z) {
+    # 蠄鈦铰光伨(z) = d/dz 蠄(z)锛屼娇鐢ㄦ暟鍊煎井鍒?
+    psi_plus <- psi_complex(z + h)
+    psi_minus <- psi_complex(z - h)
+    (psi_plus - psi_minus) / (2 * h)
+  }
+  
+  # 澶嶆暟 Digamma 鍑芥暟锛堜娇鐢?pracma 鎴栨暟鍊兼柟娉曪級
+  psi_complex <- function(z) {
+    if (requireNamespace("pracma", quietly = TRUE)) {
+      return(pracma::psi(z))
+    } else {
+      # 绠€鍗曠殑鏁板€煎疄鐜?
+      return(digamma(Re(z)) + 1i * 0)  # 绠€鍖栫増鏈紝浠呯敤浜庢紨绀?
+    }
+  }
+  
+  trigamma_plus <- trigamma_complex(m + (nu/2)*1i)
+  trigamma_minus <- trigamma_complex(m - (nu/2)*1i)
+  trigamma_m_half <- trigamma(m - 1/2)
+  trigamma_m <- trigamma(m)
+  
+  result <- trigamma_plus + trigamma_minus - trigamma_m_half - trigamma_m
+  return(Re(result))  # 杩斿洖瀹為儴
+}
+
+hPIV_nu=function(x,m,nu,lambda){
+  # 璁＄畻涓や釜Digamma鍑芥暟椤?
+  psi_plus <- psi(m + (nu/2)*1i)    # 蠄(m + 谓i/2)
+  psi_minus <- psi(m - (nu/2)*1i)   # 蠄(m - 谓i/2)
+  
+  # 璁＄畻澶嶆暟椤?(i/2 * [蠄_plus - 蠄_minus])
+  complex_term <- (1i/2) * (psi_plus - psi_minus)
+  
+  y=complex_term-atan(x/lambda)
+  return(Re(y))
+}
+
+hPIV_nu(1:10,2,1,1)
+
+hPIV_1_nu=function(x,m,nu,lambda){
+  y=x/lambda^2/(1 + (x/lambda)^2)
+  return(y)
+}
+
+hPIV_nu2=function(x,m,nu,lambda){
+  trigamma_plus <- trigamma(m + (nu/2)*1i)    # 蠄鈦铰光伨(m + 谓i/2)
+  trigamma_minus <- trigamma(m - (nu/2)*1i)   # 蠄鈦铰光伨(m - 谓i/2)
+  
+  # 缁勫悎鎵€鏈夐」 (娉ㄦ剰锛氭暟鎹浉鍏抽」娑堝け浜?
+  result <- (1/4) * (trigamma_minus - trigamma_plus)
+  
+  return(result)
+}
+hPIV_m_nu=function(x,m,nu,lambda){
+  y=0
+  return(y)
+}
+
+
+library(gsl)
+
+hessian_pIV <- function(x, lambda, nu1, nu2) {
+  # complex argument
+  z <- nu1 + 1i * nu2 / 2
+  
+  # digamma & trigamma for complex input
+  psi_z <- gsl::psi_complex(z)          # digamma(z)
+  psi_conj <- gsl::psi_complex(Conj(z)) # digamma(conj(z))
+  trigamma_z <- gsl::psi_complex(z, n = 1)  # trigamma(z)
+  trigamma_conj <- gsl::psi_complex(Conj(z), n = 1)
+  
+  # Beta term
+  psi_beta_1 <- gsl::psi(nu1 - 0.5)
+  psi_beta_2 <- gsl::psi(nu1)
+  trigamma_beta_1 <- gsl::psi(nu1 - 0.5, n = 1)
+  trigamma_beta_2 <- gsl::psi(nu1, n = 1)
+  
+  # derivatives of log C_{nu1, nu2}
+  d_logC_d_nu1 <- 2 * Re(psi_z) - 2 * gsl::psi(nu1) -
+    (psi_beta_1 - psi_beta_2)
+  d_logC_d_nu2 <- Re(1i * (psi_z - psi_conj))
+  
+  # second derivatives (Hessian elements)
+  H_nu1_nu1 <- 2 * Re(trigamma_z) - 2 * gsl::psi(nu1, 1) -
+    (trigamma_beta_1 - trigamma_beta_2)
+  H_nu2_nu2 <- -0.5 * Re(trigamma_z + trigamma_conj)
+  H_nu1_nu2 <- Im(trigamma_z - trigamma_conj)
+  
+  # store as list
+  list(
+    H_nu1_nu1 = H_nu1_nu1,
+    H_nu2_nu2 = H_nu2_nu2,
+    H_nu1_nu2 = H_nu1_nu2
+  )
+}
+
+x <- seq(-5, 5, length.out = 5)
+lambda <- 1
+nu1 <- 2
+nu2 <- 1
+
+H <- hessian_pIV(x, lambda, nu1, nu2)
+H$H_lambda_lambda  # 鍚戦噺鍖栫粨鏋?
+H$H_nu1_nu1        # 鍗曞€硷紙涓?x 鏃犲叧锛?
+
+
+D(hPIV,"m")
+D(D(hPIV,"m"),"lambda")
+D(D(hPIV,"m"),"nu")
+D(hPIV,"nu")
+D(D(hPIV,"nu"),"lambda")
+D(D(hPIV,"nu"),"m")
+
+hsgg=expression(-(x/lambda/(1+nu))^beta/2-log(lambda))
+
+hsgg_1=function(x,beta,nu,lambda){
+  y=(abs(x)/lambda/(1 + nu*sign(x)))^(beta - 1) * (beta * (abs(x)/lambda^2/(1 + nu*sign(x))))/2 - 
+    1/lambda
+  return(y)
+}
+
+hsgg_beta=function(x,beta,nu,lambda){
+  y=-((x/lambda/(1 + nu))^beta * log((x/lambda/(1 + nu)))/2)
+  return(y)
+}
+
+hsgg_beta2=function(x,beta,nu,lambda){
+  y=-((x/lambda/(1 + nu))^beta * log((x/lambda/(1 + nu))) * log((x/lambda/(1 + 
+                                                                             nu)))/2)
+  return(y)
+}
+
+hsgg_nu=function(x,beta,nu,lambda){
+  y=(x/lambda/(1 + nu))^(beta - 1) * (beta * (x/lambda/(1 + nu)^2))/2
+  return(y)
+}
+hsgg_nu2=function(x,beta,nu,lambda){
+  y=-(((x/lambda/(1 + nu))^(beta - 1) * (beta * (x/lambda * (2 * 
+                                                               (1 + nu))/((1 + nu)^2)^2)) + (x/lambda/(1 + nu))^((beta - 
+                                                                                                                    1) - 1) * ((beta - 1) * (x/lambda/(1 + nu)^2)) * (beta * 
+                                                                                                                                                                        (x/lambda/(1 + nu)^2)))/2)
+  return(y)
+}
+
+hsgg_nu_beta=function(x,beta,nu,lambda){
+  y=((x/lambda/(1 + nu))^(beta - 1) * log((x/lambda/(1 + nu))) * 
+       (beta * (x/lambda/(1 + nu)^2)) + (x/lambda/(1 + nu))^(beta - 
+                                                               1) * (x/lambda/(1 + nu)^2))/2
+  return(y)
+}
+
+hsgg_beta_nu=function(x,beta,nu,lambda){
+  y=((x/lambda/(1 + nu))^beta * (x/lambda/(1 + nu)^2/(x/lambda/(1 + 
+                                                                  nu))) + (x/lambda/(1 + nu))^(beta - 1) * (beta * (x/lambda/(1 + 
+                                                                                                                                nu)^2)) * log((x/lambda/(1 + nu))))/2
+  return(y)
+}
+hsgg_nu_beta(1:10,1,0.1,1)
+hsgg_beta_nu(1:10,1,0.1,1)
+
+D(D(hsgg,"beta"),"beta")
+D(D(hsgg,"beta"),"nu")
+D(hsgg,"nu")
+D(D(hsgg,"nu"),"nu")
+D(D(hsgg,"nu"),"beta")
+
+D(D(hsgg,"lambda"),"lambda")
+hsgg_2=function(x,beta,nu,lambda){
+  y=-(((abs(x)/lambda/(1 + nu*sign(x)))^(beta - 1) * (beta * (abs(x) * (2 * lambda)/(lambda^2)^2/(1 + 
+                                                                                  nu*sign(x)))) + (abs(x)/lambda/(1 + nu*sign(x)))^((beta - 1) - 1) * ((beta - 1) * 
+                                                                                                                                    (abs(x)/lambda^2/(1 + nu*sign(x)))) * (beta * (abs(x)/lambda^2/(1 + nu*sign(x)))))/2 - 
+        1/lambda^2)
+  return(y)
+}
+
+
+dsgg=function(x,beta,nu,lambda,log = FALSE){
+  C=beta/2^(1+1/beta)/gamma(1/beta)
+  y=-(abs(x)/lambda/(1+nu*sign(x)))^beta/2-log(lambda)+log(C)
+  if(log){
+    return(y)
+  }else{
+    return(exp(y))
+  }
+}
+
+dgg=function(x,beta,nu,lambda,log = FALSE){
+  C=beta/2^(1+1/beta)/gamma(1/beta)
+  y=-(abs(x)/lambda/(1+nu*sign(x)))^beta/2-log(lambda)+log(C)
+  if(log){
+    return(y)
+  }else{
+    return(exp(y))
+  }
+}
+
+gamma(1/2)
+
+dsgg(seq(-1,1,0.1),2,0,1,log=T)
+dnorm(seq(-1,1,0.1),log=T)
+sum(dsgg(seq(-10,10,0.01),3,0,1)*0.01)
+sum(dnorm(seq(-10,10,0.1))*0.1)
+
+dsgg(seq(-1,1,0.1),2,0,1)
+dnorm(seq(-1,1,0.1))
+
+dsgg(seq(-1,1,0.1),1,0,1)/dPE(seq(-1,1,0.1),nu=1)
+
+
+plot(seq(-1,1,0.1),dsgg(seq(-1,1,0.1),2,0,1),type="l")
+plot(seq(-1,1,0.1),dnorm(seq(-1,1,0.1)),type="l")
+lines(seq(-1,1,0.1),dnorm(seq(-1,1,0.1)),type="p",col="red")
+
+?line
+dnorm(seq(-1,1,0.1))
+
+hsgg_2(c(-2,-1,1,2),1.5,0,1)
+hsgg_1(c(-2,-1,1,2),1.5,0,1)
+hsgg_2(-1,1.5,0,1)
+sign(-1)
+
+hhyperb_1=function(x,params,lambda){
+  mu=params[1]
+  delta=params[2]
+  alpha=params[3]
+  beta=params[4]
+  y=alpha * (0.5 * (2 * (x/lambda^2 * (x/lambda - mu)) * (delta^2 + 
+      (x/lambda - mu)^2)^-0.5)) - beta * (x/lambda^2) - 1/lambda
+  return(y)
+}
+hhyperb_2=function(x,params,lambda){
+  mu=params[1]
+  delta=params[2]
+  alpha=params[3]
+  beta=params[4]
+  y=-(alpha * (0.5 * (2 * (x/lambda^2 * (x/lambda - mu)) * (-0.5 * 
+        (2 * (x/lambda^2 * (x/lambda - mu)) * (delta^2 + (x/lambda - 
+        mu)^2)^-1.5)) + 2 * (x/lambda^2 * (x/lambda^2) + x * 
+      (2 * lambda)/(lambda^2)^2 * (x/lambda - mu)) * (delta^2 + 
+       (x/lambda - mu)^2)^-0.5)) - beta * (x * (2 * lambda)/(lambda^2)^2) -1/lambda^2)                                                            
+    return(y)
+}
+
+
+x=-5:5
+hPIV_2(x,2,-1,1)
+ht_2(x,1,1.5)
+hgg_1(x,0.5,1)
+C=1
+dx0=(x/lambda)^(beta - 1) * (beta * (x/lambda^2)) * C - 1/lambda
+dx0[is.nan(dx0)]<-0
+-((-x/lambda)^(beta - 1) * (beta * (x/lambda^2)) * C + 1/lambda)
+
+t_df=5
+gg_nu=1
+w=0
+k=1
+(0.25)^1.1
+
+### calculate the k-th moments of standard t-distribution 
+### or generalized Gaussian distribution
+moments = function(k,w=1,params)
+{
+  func = function(x) {
+    abs(x) ^ k * (w * dt(x / sqrt((t_df - 2) / t_df), df = t_df) / sqrt((t_df -
+                                                                           2) / t_df) + (1 - w) * dPE(x, nu = gg_nu))
+  }
+  return(integrate(func, -Inf, Inf)$value)
+}
+
+moments0 = function(k,w=1,params,M=100)
+{
+  func = function(x) {
+    if(w==0){
+      gg_nu=params[1]
+      return(abs(x) ^ k*dPE(x, nu = gg_nu))
+    }else if(w==1){
+      t_df=params[1]
+      return(abs(x) ^ k*dt(x, df = t_df))
+    }
+    else if(w==2){
+      m=params[1]
+      nu=params[2]
+      return(abs(x) ^ k*dpearsonIV(x, m, nu, location=0, scale=1))
+    }
+    else if(w==3){
+      m=params[1]
+      nu=params[2]
+      return(abs(x) ^ k*dhyperb(x, param = params))
+    }
+    else if(w==4){
+      return(abs(x) ^ k*dstable(x, alpha= params[1],beta= params[2],gamma= params[3],delta= params[4]))
+      #dstable(x*Cr, alpha= params[1],beta= params[2],gamma= params[3],delta= params[4])*Cr)
+    }
+  }
+  return(integrate(func,  -M, M, subdivisions = 1000)$value)
+}
+
+
+moments_stard = function(k,params0)
+{
+  w=params0[1]
+  params=params0[-1]
+  func = function(x) {
+    if(w==0){
+      gg_nu=params[1]
+      return(abs(x) ^ k*dPE(x, nu = gg_nu))
+    }else if(w==1){
+      t_df=params[1]
+      s1=sqrt(t_df/(t_df-2))
+      return(abs(x) ^ k*dt(x*s1, df = t_df)*s1)
+    }
+    else if(w==2){
+      m=params[1]
+      nu=params[2]
+      return(abs(x) ^ k*dpearsonIV(x, m, nu, location=0, scale=1))
+    }
+    else if(w==3){
+      m=params[1]
+      nu=params[2]
+      return(abs(x) ^ k*dhyperb(x, param = params))
+    }
+    else if(w==4){
+      return(abs(x) ^ k*dstable(x, params[1],params[2],params[3],params[4]))
+    }
+  }
+  return(integrate(func,  -Inf, Inf, subdivisions = 1000000)$value)
+}
+
+moments1 = function(k,w=1,params)
+{
+  func = function(x) {
+    if(w==0){
+      gg_nu=params[1]
+      return(abs(x) ^ k*dPE(x, nu = gg_nu))
+    }else if(w==1){
+      t_df=params[1]
+      return(abs(x) ^ k*dt(x, df = t_df))
+    }
+    else if(w==2){
+      m=params[1]
+      nu=params[2]
+      return(x ^ k*dpearsonIV(x, m, nu, location=0, scale=1))
+    }
+  }
+  return(integrate(func,  -Inf, Inf, subdivisions = 1000000)$value)
+}
+
+moments0(2,w=2,params=c(2,-2))
+moments1(1,w=2,params=c(2,-2))
+
+df=4
+sd(rt(1000000,df)/sqrt(df/(df-2)))
+
+eta_df=function(x,r,w,params,Cr){
+  #print(Cr0)
+  if(w==0){
+    #gg_nu=params[1]
+    return(dPE(x, nu = params[1]))
+  }else if(w==1){
+    t_df=params[1]
+    s1=sqrt(t_df/(t_df-2))
+    return(dt(x*Cr*s1, df = t_df)*Cr*s1)
+  }
+  else if(w==2){
+    m=params[1]
+    nu=params[2]
+    return(dpearsonIV(x*Cr, m, nu, location=0, scale=1)*Cr)
+  }
+  else if(w==3){
+    return(dhyperb(x*Cr, param = params)*Cr)
+  }
+  else if(w==4){
+    #rstable(n, alpha= params1[1],beta= params1[2],gamma= params1[3],delta= params1[4])
+    return(dstable(x*Cr, alpha= params[1],beta= params[2],gamma= params[3],delta= params[4])*Cr)
+  }
+}
+
+moments_stard(2,1,10)
+
+x=rPE(100000,mu = 0, sigma = 1, nu = 0.5)
+mean(x)
+mean(abs(x)^0.5)
+moments_eta = function(r,k,t_df=5,gg_nu=2,w=1)
+{
+  func = function(x) {
+    abs(x) ^ k *eta_df(x,t_df=t_df,gg_nu=gg_nu,w=w,r=r)
+  }
+  return(integrate(func,  -Inf, Inf, subdivisions = 1000000)$value)
+}
+moments0(2,4,2,0)
+eta_df(5,4,2,0,2)
+moments_eta(r=2,k=4,t_df=7,gg_nu=5,w=1)
+
+
+
+x=-1000:1000/100
+
+plot(eta_df(x,2,3,1,0.5),type = "l")
+
+moments0(2,3,2,1)
+moments0(r,t_df,gg_nu,w)
+
+moments2 = function(r,k,t_df=5,gg_nu=2,w=1)
+{
+  Cr0=moments(r)
+  Cr=Cr0^(1/r)
+  func = function(x) {
+    abs(x) ^ k * (w * dt(x / sqrt((t_df - 2) / t_df)*Cr, df = t_df) / sqrt((t_df -
+                                                                           2) / t_df)*Cr + (1 - w) * dPE(x*Cr, nu = gg_nu)*Cr)
+  }
+  return(integrate(func, -Inf, Inf)$value)
+}
+Cr0=moments(3)
+moments2(1,3)
+
+
+moments2r = function(r,params0)
+{
+  k=2*r
+  w=params0[1]
+  params=params0[-1]
+  Cr0=moments_stard(r,params0)
+  Cr=Cr0^(1/r)
+  func = function(x) {
+    if(w==0){
+      gg_nu=params[1]
+      return(abs(x) ^ k*dPE(x*Cr, nu = gg_nu)*Cr)
+    }else if(w==1){
+      t_df=params[1]
+      s1=sqrt(t_df/(t_df-2))
+      return(abs(x) ^ k*dt(x*s1*Cr, df = t_df)*s1*Cr)
+    }
+    else if(w==2){
+      m=params[1]
+      nu=params[2]
+      return(abs(x) ^ k*dpearsonIV(x*Cr, m, nu, location=0, scale=1)*Cr)
+    }
+    else if(w==3){
+      m=params[1]
+      nu=params[2]
+      return(abs(x) ^ k*dhyperb(x*Cr, param = params)*Cr)
+    }
+  }
+  return(integrate(func,  -Inf, Inf, subdivisions = 1000000)$value)
+}
+moments2r(2,c(0,2))
+
+
+
+x=-5:5
+sign(1)
+f_vec(x,D(hgg,"lambda"),3,2,1,1)
+gamma(1)
+f=expression()
+hh(x)
+hh(1,6,1)
+h.l=function(a,df,lambda){
+  y=NULL
+  for(i in 1:length(a))
+  { y[i]=eval({nu=df;x=a[i];la=lambda;D(h,"la")})
+  }
+  return(y)
+}
+h.ll=function(a,df,lambda){
+  y=NULL
+  for(i in 1:length(a))
+  {y[i]=eval({nu=df;x=a[i];la=lambda;D(D(h,"la"),"la")})
+  }
+  return(y)
+}
+
+lambda=2
+a=1:5
+a*h.x(a,df=7,lambda = lambda)+lambda*h.l(a,df=7,lambda = lambda)+1
+
+
+#solve lambda_f, t_df and gg_nu is parameters of eta_t's distribution, qmle.df is the t-dist parameter.
+#eta_df=function(x,r,w,params)
+lambda_func=function(data_params,r,qmle_params,Cr1,M=1000)
+{
+  w1=data_params[1]
+  params1=data_params[-1]
+  #Cr=moments0(r,w1,params1)
+  #cat("lambda_f:",Cr^(-1/r),"\n")
+  #print(Cr)
+  w2=qmle_params[1]
+  params2=qmle_params[-1]
+  fun.object=function(lambda){
+    expectation=function(x)
+    {
+      if(w2==1){
+        s1=sqrt(params2[1]/(params2[1]-2))
+        y1=-(log(dt(x/lambda*s1,df=params2[1]))-log(lambda)+log(s1))*eta_df(x,r,w1,params1,Cr=Cr1)
+        return(y1)
+      }else if(w2==0){
+        y1=-(dPE(x/ lambda, nu = params2[1], log = T) -log( lambda))*eta_df(x,r,w1,params1,Cr=Cr1)
+        
+        #y1=-hgg_0(x,params2[1],lambda)*eta_df(x,r,w1,params1,Cr1)
+        #y1=-(log(dPE(x/lambda,nu =params2[1]))-log(lambda))*eta_df(x,r,w1,params1,Cr=Cr1)
+        return(y1)
+      }
+      else if(w2==2){
+        y1=-(log(dpearsonIV(x/lambda,m=params2[1],nu = params2[2],location=0, scale=1))-log(lambda))*eta_df(x,r,w1,params1,Cr=Cr1)
+        #y1=-(log(dPE(x/lambda,nu = qmle_nu))-log(lambda))*eta_df(x,t_df,gg_nu,w,r)
+        return(y1)
+      }
+      else if(w2==3){
+        y1=-(log(dhyperb(x/lambda, param = params2))-log(lambda))*eta_df(x,r,w1,params1,Cr=Cr1)
+        #y1=-(log(dPE(x/lambda,nu = qmle_nu))-log(lambda))*eta_df(x,t_df,gg_nu,w,r)
+        return(y1)
+      }
+    }
+    return(integrate(expectation, -M, M,subdivisions = 1000000)$value)}
+  
+    opt0=optimise(fun.object,c(0.01,30),tol=1e-12)
+    lambda=opt0$minimum
+  #print(Cr*lambda)
+  print(opt0)
+  return(lambda)
+}
+
+f <- function (x, a) (x - a)^2
+xmin <- optimize(f, c(0, 1), tol = 0.0001, a = 1/3)
+xmin
+
+
+sigmoid=function(x){
+  return(1/(1+exp(-x)))
+}
+
+lambda_func2=function(data_params,r,qmle_params,Cr1,theta0,M=1000)
+{
+  w1=data_params[1]
+  params1=data_params[-1]
+  #Cr=moments0(r,w1,params1)
+  #cat("lambda_f:",Cr^(-1/r),"\n")
+  #print(Cr)
+  w2=qmle_params[1]
+  params2=qmle_params[-1]
+  fun.object=function(theta){
+    
+    expectation=function(x)
+    {
+      if(w2==1){
+        lambda=exp(theta)
+        #lambda=exp(theta)+c(0,2)
+        s1=1#sqrt(lambda[2]/(lambda[2]-2))
+        y1=-(log(dt(x/lambda[1]*s1,df=lambda[2]))-log(lambda[1])+log(s1))*eta_df(x,r,w1,params1,Cr=Cr1)
+        return(y1)
+      }else if(w2==0){
+        lambda=c(exp(theta[1]),sigmoid(theta[2])*5)
+        #lambda=exp(theta)
+        #sigmoid(1)
+       # y1=-hgg_0(x,lambda[2],lambda[1])*eta_df(x,r,w1,params1,Cr1)
+        y1=-(dPE(x/ lambda[1], nu = lambda[2], log = T) -log( lambda[1]))*eta_df(x,r,w1,params1,Cr=Cr1)
+        #y1=-(log(dPE(x/lambda[1],nu =lambda[2]))-log(lambda[1]))*eta_df(x,r,w1,params1,Cr=Cr1)
+        #return(pmax(y1, 1,na.rm = T))
+        return(y1)
+      }
+      else if(w2==2){
+        y1=-(log(dpearsonIV(x/lambda,m=params2[1],nu = params2[2],location=0, scale=1))-log(lambda))*eta_df(x,r,w1,params1,Cr=Cr1)
+        #y1=-(log(dPE(x/lambda,nu = qmle_nu))-log(lambda))*eta_df(x,t_df,gg_nu,w,r)
+        return(y1)
+      }
+      else if(w2==3){
+        y1=-(log(dhyperb(x/lambda, param = params2))-log(lambda))*eta_df(x,r,w1,params1,Cr=Cr1)
+        #y1=-(log(dPE(x/lambda,nu = qmle_nu))-log(lambda))*eta_df(x,t_df,gg_nu,w,r)
+        return(y1)
+      }
+    }
+   
+    return(integrate(expectation, -M,M,subdivisions = 10000)$value)
+  }
+  opt0 = optim(theta0, fun.object,control = list(
+    reltol = 1e-10,  # 鐩稿鏀舵暃瀹归檺
+    abstol = 1e-10,  # 缁濆鏀舵暃瀹归檺
+    maxit = 1000,    # 鏈€澶ц凯浠ｆ鏁?
+    parscale = c(1, 1)  # 鍙傛暟缂╂斁鍊?
+  ))
+  #print(opt0)
+  #opt0 = optim(theta0, fun.object)
+  
+  lambda=exp(opt0$par)
+  if(w2==1){
+    # lambda=lambda+c(0,2)
+    lambda=lambda
+  }
+  if(w2==0){
+    #print(opt0$par)
+    theta=opt0$par
+    lambda=c(exp(theta[1]),sigmoid(theta[2])*5)
+  }
+  print(opt0)
+  #print(Cr*lambda)
+  return(lambda)
+}
+
+
+lambda_func22=function(data_params,r,qmle_params,Cr1,theta0)
+{
+  w1=data_params[1]
+  params1=data_params[-1]
+  #Cr=moments0(r,w1,params1)
+  #cat("lambda_f:",Cr^(-1/r),"\n")
+  #print(Cr)
+  w2=qmle_params[1]
+  params2=qmle_params[-1]
+  etat=rPE(100000,nu=params1[1])
+  fun.object=function(theta){
+      if(w2==1){
+        lambda=exp(theta)
+        s1=sqrt(lambda[2]/(lambda[2]-2))
+        y1=-(log(dt(x/lambda[1]*s1,df=lambda[2]))-log(lambda[1])+log(s1))*eta_df(x,r,w1,params1,Cr=Cr1)
+        return(y1)
+      }else if(w2==0){
+       
+        lambda=c(exp(theta[1]),sigmoid(theta[2])*5)
+        #lambda=exp(theta)
+        #sigmoid(1)
+        #y1=-hgg_0(x,lambda[2],lambda[1])*eta_df(x,r,w1,params1,Cr1)
+       
+        #y1=-log(dPE(x/ lambda[1], nu = lambda[2]) / lambda[1])
+        return(-mean(log(
+          dPE(etat / lambda[1], nu = lambda[2]) / lambda[1]
+        )))
+        #y1=-(log(dPE(x/lambda[1],nu =lambda[2]))-log(lambda[1]))*eta_df(x,r,w1,params1,Cr=Cr1)
+        #return(pmax(y1, 1,na.rm = T))
+        #return(y1)
+      }
+      else if(w2==2){
+        y1=-(log(dpearsonIV(x/lambda,m=params2[1],nu = params2[2],location=0, scale=1))-log(lambda))*eta_df(x,r,w1,params1,Cr=Cr1)
+        #y1=-(log(dPE(x/lambda,nu = qmle_nu))-log(lambda))*eta_df(x,t_df,gg_nu,w,r)
+        return(y1)
+      }
+      else if(w2==3){
+        y1=-(log(dhyperb(x/lambda, param = params2))-log(lambda))*eta_df(x,r,w1,params1,Cr=Cr1)
+        #y1=-(log(dPE(x/lambda,nu = qmle_nu))-log(lambda))*eta_df(x,t_df,gg_nu,w,r)
+        return(y1)
+      }
+  }
+  # opt0 = optim(theta0, fun.object,control = list(
+  #   reltol = 1e-10,  # 鐩稿鏀舵暃瀹归檺
+  #   abstol = 1e-10,  # 缁濆鏀舵暃瀹归檺
+  #   maxit = 1000,    # 鏈€澶ц凯浠ｆ鏁?
+  #   parscale = c(1, 1)  # 鍙傛暟缂╂斁鍊?
+  # ))
+  #print(opt0)
+  opt0 = optim(theta0, fun.object)
+  
+  lambda=exp(opt0$par)
+  if(w2==0){
+    #print(opt0$par)
+    theta=opt0$par
+    lambda=c(exp(theta[1]),sigmoid(theta[2])*5)
+  }
+  print(opt0)
+  #print(Cr*lambda)
+  return(lambda)
+}
+w2=0
+fun.object(c(0,0))
+hgg_0(x,lambda[2],lambda[1])*eta_df(x,r,w1,params1,Cr1)
+
+w2=1
+w1=1
+params1=c(5)
+fun.object(c(1,3))
+eta_df
+data_params=c(2,2,-2)
+r=1
+#r=1
+Cr0=moments_stard(r,data_params)
+Cr1=Cr0^(1/r)
+#r=2
+#qmle_params=c(2,2,-2)
+data_params=c(1,20)
+data_params=c(0,0.5)
+data_params=c(1,3)
+data_params=c(1,5)
+data_params=c(0,1)
+qmle_params=c(1,1)
+
+qmle_params=c(0,1)
+theta0=c(0,1)
+data_params=c(0,0.9340986)
+qmle_params=c(1,1)
+lambda_func2(data_params,2,qmle_params,1,theta0=c(1,1),M=1000)
+
+lambda_func2(data_params,2,qmle_params,1,theta0=c(1,1),M=2000)
+
+lambda_func(data_params,2,c(0,1.2437228),1,M=2000)
+lambda_func(data_params,2,c(0,1),1,M=1000)
+lambda_func(data_params,2,c(0,1),1)
+lambda_func(data_params,2,c(0,1.5),1)
+lambda_func(data_params,2,c(1,5.1),1)
+lambda_func(data_params,2,c(0,1),1,M=1000)
+
+lambda_func2(data_params,1,c(1,1),1,theta0=c(0,0),M=1e3)
+lambda_func22(data_params,1,qmle_params,1,theta0=c(0,1))
+pmax(NA, 1e-100,na.rm = T)
+pmax
+qmle_params=c(0,2)
+theta0=c(0,1)
+lambda_func2(data_params,1,qmle_params,1.5,theta0)
+
+qmle_params=c(1,7)
+
+
+eta_df
+eta_df
+Cr1=1
+if(data_params[1]==4){
+  Cr0=moments_stard(r,data_params)
+  Cr1=Cr0^(1/r)
+}
+cat("Cr1:",Cr1)
+kappa_func=function(data_params,r,qmle_params,Cr1,M=1000){
+  lambda=lambda_func(data_params,r,qmle_params,Cr1)
+  cat("lambda:",lambda,"\n")
+  w2=qmle_params[1]
+  params2=qmle_params[-1]
+  w1=data_params[1]
+  params1=data_params[-1]
+  cat("w1:",w1,"params1:", params1,"\n")
+  cat("w2:",w2,"params2:", params2,"\n")
+  if(w2==1){
+    s1=sqrt(params2[1]/(params2[1]-2))
+    f1=function(x){ht_1(x*s1,params2[1],lambda)^2*eta_df(x,r,w1,params1,Cr1)}
+    E_h12=integrate(f1,-Inf,Inf,subdivisions = 1000000)$value
+    f2=function(x){ht_2(x*s1,params2[1],lambda)*eta_df(x,r,w1,params1,Cr1)}
+    E_h22=integrate(f2,-Inf,Inf,subdivisions = 1000000)$value
+    y1=4*E_h12/lambda^2/E_h22^2
+    cat("Eh12锛?,E_h12,"Eh22锛?,E_h22,"lambda:",lambda,"\n")
+    return(y1)
+  }else if(w2==0){
+    #lambda=1
+    f1=function(x){hgg_1(x,beta=params2[1],lambda)^2*eta_df(x,r,w1,params1,Cr1)}
+    E_h12=integrate(f1,--Inf,Inf,subdivisions = 1000000)$value
+    f2=function(x){hgg_2(x,beta=params2[1],lambda)*eta_df(x,r,w1,params1,Cr1)}
+    E_h22=integrate(f2,-Inf,Inf,subdivisions = 1000000)$value
+    cat("Eh12锛?,E_h12,"Eh22锛?,E_h22,"lambda:",lambda,"\n")
+    y1=4*E_h12/lambda^2/E_h22^2
+    return(y1)
+  }else if(w2==2){
+    f1=function(x){hPIV_1(x,params2[1],params2[2],lambda)^2*eta_df(x,r,w1,params1,Cr1)}
+    E_h12=integrate(f1,-M,M,subdivisions = 1000000)$value
+    f2=function(x){hPIV_2(x,params2[1],params2[2],lambda)*eta_df(x,r,w1,params1,Cr1)}
+    E_h22=integrate(f2,-M,M)$value
+    y1=4*E_h12/lambda^2/E_h22^2
+    cat("Eh12锛?,E_h12,"Eh22锛?,E_h22,"lambda:",lambda,"\n")
+    return(y1)
+  }
+  else if(w2==3){
+    f1=function(x){hhyperb_1(x,params2,lambda)^2*eta_df(x,r,w1,params1,Cr1)}
+    E_h12=integrate(f1,-M,M,subdivisions = 1000000)$value
+    f2=function(x){hhyperb_2(x,params2,lambda)*eta_df(x,r,w1,params1,Cr1)}
+    E_h22=integrate(f2,-M,M,subdivisions = 1000000)$value
+    y1=4*E_h12/lambda^2/E_h22^2
+    cat("Eh12锛?,E_h12,"Eh22锛?,E_h22,"lambda:",lambda,"\n")
+    return(y1)
+  }
+  
+}
+
+
+r=0.5
+data_params=c(1,5)
+data_params=c(0,1)
+qmle_params=c(1,5)
+lambda_func(data_params,2,qmle_params,Cr1)
+c(kappa_r(0.5,data_params),kappa_func(data_params,0.5,qmle_params))
+
+eta_df
+
+c(kappa_r(1,data_params),kappa_func(data_params,1,qmle_params))
+
+kappa_r(0.5,data_params)
+kappa_r(1,data_params)
+kappa_r(2,data_params)
+kappa_func(data_params,0.1,qmle_params)
+kappa_func(data_params,1,qmle_params)
+kappa_func(data_params,2,qmle_params)
+r_list=seq(0.3,2,by=0.005)
+y1=r_list
+y2=r_list
+for(r1 in 1:length(r_list)){
+  y1[r1]=kappa_r(r_list[r1],data_params)
+  y2[r1]=kappa_func(data_params,r_list[r1],qmle_params)
+}
+
+x0=seq(0.1,2.05,by=0.005)
+
+r_list=x0 #seq(0.3,2, length.out=200)
+nu_list=x0*4+2  #+#seq(3,10, length.out=200)
+y1=r_list
+y2=r_list
+y3=r_list
+data_params=c(0,1)
+
+{
+data_params=c(1,5)
+for(r1 in 1:length(r_list)){
+  tryCatch({
+  print(r1)
+  r=2
+  Cr0=moments_stard(r,data_params)
+  Cr1=Cr0^(1/r)
+   
+  y1[r1]=kappa_r(r_list[r1],data_params) #kappa_func(data_params,r_list[r1],c(0,r))
+  y2[r1]=kappa_func(data_params,r,c(0,r_list[r1]),Cr1,M=1000) #kappa_func(data_params,r_list[r1],c(0,r))
+  y3[r1]=kappa_func(data_params,r,c(1,nu_list[r1]),Cr1,M=1000) 
+  #print(y2[r1])
+    },
+  error = function(e) {
+    # 閿欒澶勭悊浠ｇ爜
+    cat("鎹曟崏鍒伴敊璇?", e$message, "\n")
+    return(NA) # 杩斿洖涓€涓粯璁ゅ€?
+  })
+  
+}
+
+x1=r_list
+x2=nu_list
+x2_scaled <- (x2 - min(x2)) / (max(x2) - min(x2)) * (max(x1) - min(x1)) + min(x1)
+
+nu_list[which.min(y3)]
+
+par(mar = c(4, 4, 4, 1))
+# 缁樺埗绗竴涓暟鎹泦
+plot(x1, y1, type="l", col="red", lwd=2,xlab=expression( beta), ylab=expression(paste(kappa["f"]," or ", kappa["r"])), xlim=c(0, max(x1)),ylim=c(min(c(y1,y3)),max(c(y1,y2,y3))+1),lty="dotted")
+#plot(x1, y1, type="l", col="red", lwd=2,xlab=expression( beta), ylab=expression(paste(kappa["f"]," or ", kappa["r"])), xlim=c(0, max(x1)),ylim=c(min(c(y1,y3)),max(c(y1,y2,y3))),lty="dotted")
+
+#lines(x1, y1, type="l", col="red",  xlab="", ylab="", xlim=c(0, max(x1)))
+
+#lines(x1, y2, type="l", col="blue",  xlab="", ylab="", xlim=c(0, max(x1)))
+# 娣诲姞绗簩涓暟鎹泦
+#par(new=TRUE)
+lines(x2_scaled, y3, type="l", col="black",  lwd=2, xlab="", ylab="", xlim=c(min(x1), max(x1)),lty="solid")
+kappa0p5=y2[x1==0.5]
+kappa2=y2[x1==2]
+lines(x1,rep(kappa0p5,length(x1)),col="blue", lwd=2,lty="dashed",type="l")
+lines(x1,rep(kappa2,length(x1)),col="blue", lwd=2,lty="longdash")
+#abline(v=0)
+
+# 娣诲姞绗簩涓í鍧愭爣杞?
+axis(side=3, at=pretty(x1), labels=round(pretty(x2), 2)) # 鏍规嵁绗竴涓暟鎹泦鐨勫埢搴︽坊鍔犵浜屼釜鏁版嵁闆嗙殑鍒诲害
+#mtext(expression( nu), side=3, line=3, at=50)
+mtext(expression( nu), side=3, line=2.5)
+# 娣诲姞鍙充晶鐨勭旱鍧愭爣杞?
+d1=expression(paste(kappa["f"], " with " , f==t[nu]))
+d2=expression(paste(kappa["f"], " with " , f==gg[beta]))
+d3=expression(paste(kappa["r"], " with " , r==0.5,"  "))
+d4=expression(paste(kappa["r"], " with " , r==2,"  "))
+# 娣诲姞鍥句緥
+#gg_1
+#legend(0.55,5.8, legend=c( d1, d2,d3,d4), col=c("black","red","blue" ,"blue"), lty=c("solid","dotted","dashed","longdash"),lwd=2,cex = 0.8)
+#st 5
+legend(0.55,10, legend=c( d1, d2,d3,d4), col=c("black","red","blue" ,"blue"), lty=c("solid","dotted","dashed","longdash"),lwd=2, cex = 0.8)
+}
+
+y3[which(x1==0.5)]
+y3==y2[which(x1==0.5)]
+max(y3)
+min(y1)
+which.min(y2)
+x2[y3>=3.351066]
+x2[x1[which.min(y1)]]
+###(0,1) plot
+{
+  data_params=c(0,1)
+  for(r1 in 1:length(r_list)){
+    tryCatch({
+      print(r1)
+      r=2
+      Cr0=moments_stard(r,data_params)
+      Cr1=Cr0^(1/r)
+      
+      y1[r1]=kappa_r(r_list[r1],data_params) #kappa_func(data_params,r_list[r1],c(0,r))
+      y2[r1]=kappa_func(data_params,r,c(0,r_list[r1]),Cr1,M=1000) #kappa_func(data_params,r_list[r1],c(0,r))
+      y3[r1]=kappa_func(data_params,r,c(1,nu_list[r1]),Cr1,M=1000) 
+      #print(y2[r1])
+    },
+    error = function(e) {
+      # 閿欒澶勭悊浠ｇ爜
+      cat("鎹曟崏鍒伴敊璇?", e$message, "\n")
+      return(NA) # 杩斿洖涓€涓粯璁ゅ€?
+    })
+    
+  }
+  
+  x1=r_list
+  x2=nu_list
+  x2_scaled <- (x2 - min(x2)) / (max(x2) - min(x2)) * (max(x1) - min(x1)) + min(x1)
+  
+  nu_list[which.min(y3)]
+  
+  par(mar = c(4, 4, 4, 1))
+  # 缁樺埗绗竴涓暟鎹泦
+  #plot(x1, y1, type="l", col="red", lwd=2,xlab=expression( beta), ylab=expression(paste(kappa["f"]," or ", kappa["r"])), xlim=c(0, max(x1)),ylim=c(min(c(y1,y3)),max(c(y1,y2,y3))+1),lty="dotted")
+  plot(x1, y1, type="l", col="red", lwd=2,xlab=expression( beta), ylab=expression(paste(kappa["f"]," or ", kappa["r"])), xlim=c(0, max(x1)),ylim=c(min(c(y1,y3)),max(c(y1,y2,y3))),lty="dotted")
+  # 娣诲姞绗簩涓暟鎹泦
+  #par(new=TRUE)
+  lines(x2_scaled, y3, type="l", col="black",  lwd=2, xlab="", ylab="", xlim=c(min(x1), max(x1)),lty="solid")
+  kappa0p5=y2[x1==0.5]
+  kappa2=y2[x1==2]
+  lines(x1,rep(kappa0p5,length(x1)),col="blue", lwd=2,lty="dashed",type="l")
+  lines(x1,rep(kappa2,length(x1)),col="blue", lwd=2,lty="longdash")
+  #abline(v=0)
+  
+  # 娣诲姞绗簩涓í鍧愭爣杞?
+  axis(side=3, at=pretty(x1), labels=round(pretty(x2), 2)) # 鏍规嵁绗竴涓暟鎹泦鐨勫埢搴︽坊鍔犵浜屼釜鏁版嵁闆嗙殑鍒诲害
+  #mtext(expression( nu), side=3, line=3, at=50)
+  mtext(expression( nu), side=3, line=2.5)
+  # 娣诲姞鍙充晶鐨勭旱鍧愭爣杞?
+  d1=expression(paste(kappa["f"], " with " , f==t[nu]))
+  d2=expression(paste(kappa["f"], " with " , f==gg[beta]))
+  d3=expression(paste(kappa["r"], " with " , r==0.5,"  "))
+  d4=expression(paste(kappa["r"], " with " , r==2,"  "))
+  # 娣诲姞鍥句緥
+  #gg_1
+  legend(0.55,5.8, legend=c( d1, d2,d3,d4), col=c("black","red","blue" ,"blue"), lty=c("solid","dotted","dashed","longdash"),lwd=2,cex = 0.8)
+  #st 5
+  #legend(0.55,10, legend=c( d1, d2,d3,d4), col=c("black","red","blue" ,"blue"), lty=c("solid","dotted","dashed","longdash"),lwd=2, cex = 0.8)
+}
+
+
+
+
+{
+  x0=seq(0.1,2.05,by=0.1)
+  
+  r_list=x0 #seq(0.3,2, length.out=200)
+  nu_list=x0*4+2  #+#seq(3,10, length.out=200)
+  y1=r_list
+  y2=r_list
+  y3=r_list
+  #data_params=c(0,1)
+  for(r1 in 1:length(r_list)){
+    tryCatch({
+      print(r1)
+      data_params=c(0,r_list[r1])
+      opt=lambda_func2(data_params,2,c(1,0),1,theta0=c(1,1),M=2000)
+      lambda_func2(c(0,0.3),0.5,c(1,0),0.5,theta0=c(1,0),M=1000)
+      y2[r1]=opt[2]
+      sigmoid(-21)
+      
+      data_params=c(1,nu_list[r1])
+      opt=lambda_func2(data_params,2,c(0,0),1,theta0=c(1,1),M=290)
+      lambda_func2(c(0,0.5),2,c(1,0),5,theta0=c(1,1),M=2000)
+      kappa_func(c(0,0.5),2,c(1,2),1,M=2000) 
+      kappa_func(c(0,0.5),2,c(1,7),1,M=2000) 
+      kappa_func(c(1,5),2,c(1,5),1,M=1000) 
+      
+      y3[r1]=opt[2]
+      #y3[r1]=kappa_func(data_params,r,c(1,nu_list[r1]),Cr1,M=1000) 
+      #print(y2[r1])
+    },
+    error = function(e) {
+      # 閿欒澶勭悊浠ｇ爜
+      cat("鎹曟崏鍒伴敊璇?", e$message, "\n")
+      return(NA) # 杩斿洖涓€涓粯璁ゅ€?
+    })
+    
+  }
+  
+  x1=r_list
+  x2=nu_list
+  x2_scaled <- (x2 - min(x2)) / (max(x2) - min(x2)) * (max(x1) - min(x1)) + min(x1)
+  
+  nu_list[which.min(y3)]
+  
+  par(mar = c(4, 4, 4, 1))
+  # 缁樺埗绗竴涓暟鎹泦
+  #plot(x1, y1, type="l", col="red", lwd=2,xlab=expression( beta), ylab=expression(paste(kappa["f"]," or ", kappa["r"])), xlim=c(0, max(x1)),ylim=c(min(c(y1,y3)),max(c(y1,y2,y3))+1),lty="dotted")
+  plot(x1, y1, type="l", col="red", lwd=2,xlab=expression( beta), ylab=expression(paste(kappa["f"]," or ", kappa["r"])), xlim=c(0, max(x1)),ylim=c(min(c(y1,y3)),max(c(y1,y2,y3))),lty="dotted")
+  # 娣诲姞绗簩涓暟鎹泦
+  #par(new=TRUE)
+  lines(x2_scaled, y3, type="l", col="black",  lwd=2, xlab="", ylab="", xlim=c(min(x1), max(x1)),lty="solid")
+  kappa0p5=y2[x1==0.5]
+  kappa2=y2[x1==2]
+  lines(x1,rep(kappa0p5,length(x1)),col="blue", lwd=2,lty="dashed",type="l")
+  lines(x1,rep(kappa2,length(x1)),col="blue", lwd=2,lty="longdash")
+  #abline(v=0)
+  
+  # 娣诲姞绗簩涓í鍧愭爣杞?
+  axis(side=3, at=pretty(x1), labels=round(pretty(x2), 2)) # 鏍规嵁绗竴涓暟鎹泦鐨勫埢搴︽坊鍔犵浜屼釜鏁版嵁闆嗙殑鍒诲害
+  #mtext(expression( nu), side=3, line=3, at=50)
+  mtext(expression( nu), side=3, line=2.5)
+  # 娣诲姞鍙充晶鐨勭旱鍧愭爣杞?
+  d1=expression(paste(kappa["f"], " with " , f==t[nu]))
+  d2=expression(paste(kappa["f"], " with " , f==gg[beta]))
+  d3=expression(paste(kappa["r"], " with " , r==0.5,"  "))
+  d4=expression(paste(kappa["r"], " with " , r==2,"  "))
+  # 娣诲姞鍥句緥
+  #gg_1
+  legend(0.55,5.8, legend=c( d1, d2,d3,d4), col=c("black","red","blue" ,"blue"), lty=c("solid","dotted","dashed","longdash"),lwd=2,cex = 0.8)
+  #st 5
+  #legend(0.55,10, legend=c( d1, d2,d3,d4), col=c("black","red","blue" ,"blue"), lty=c("solid","dotted","dashed","longdash"),lwd=2, cex = 0.8)
+}
+
+
+
+x=seq(-10,10,by=0.1)
+plot(x,dPE(x,nu=0.1),type="l")
+dPE(-1000,nu=0.1)
+
+ls()          # 鏌ョ湅褰撳墠鐜涓湁鍝簺瀵硅薄
+sapply(ls(), function(x) object.size(get(x)))  # 鏌ョ湅姣忎釜瀵硅薄鍗犵敤鍐呭瓨澶у皬
+
+
