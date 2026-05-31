@@ -2,7 +2,7 @@
 
 This repository contains data and code for the manuscript:
 
-**Robust and Efficient Inference for Stationary and Nonstationary GARCH Models with Heavy-Tailed and Asymmetric Innovations**
+**Robust and Efficient Inference for GARCH Models with Heavy-Tailed and Asymmetric Innovations**
 
 The package is organized to reproduce the simulation and empirical results reported in `main.tex` and `supp.tex`. Generated outputs are not stored in the repository; running the scripts will create `results/` and, where applicable, `figures/`.
 
